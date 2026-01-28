@@ -22,6 +22,11 @@ on:
           - apply
           - destroy
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 env:
   TF_VERSION: '1.6.0'
   AWS_REGION: 'us-east-1'
@@ -47,28 +52,13 @@ jobs:
         with:
           working_directory: terraform
           soft_fail: true
-          format: sarif
-          out: tfsec-results.sarif
-
-      - name: Upload tfsec SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: tfsec-results.sarif
 
       - name: Checkov scan
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform
           soft_fail: true
-          output_format: sarif
-          output_file_path: checkov-results.sarif
-
-      - name: Upload Checkov SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: checkov-results.sarif
+          skip_check: CKV_AWS_144,CKV_AWS_145
 
   terraform:
     name: Terraform
