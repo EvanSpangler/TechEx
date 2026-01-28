@@ -16,7 +16,7 @@ variable "private_subnet_ids" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.28"
+  default     = "1.30"
 }
 
 variable "node_instance_types" {

@@ -106,6 +106,7 @@ resource "aws_s3_bucket_policy" "cloudtrail" {
 # ==========================================
 
 resource "aws_guardduty_detector" "main" {
+  count  = var.enable_guardduty ? 1 : 0
   enable = true
 
   datasources {
@@ -152,8 +153,9 @@ resource "aws_securityhub_standards_subscription" "aws_foundational" {
 # ==========================================
 
 resource "aws_config_configuration_recorder" "main" {
+  count    = var.enable_config ? 1 : 0
   name     = "${var.environment}-config-recorder"
-  role_arn = aws_iam_role.config.arn
+  role_arn = aws_iam_role.config[0].arn
 
   recording_group {
     all_supported = true
@@ -161,20 +163,23 @@ resource "aws_config_configuration_recorder" "main" {
 }
 
 resource "aws_config_configuration_recorder_status" "main" {
-  name       = aws_config_configuration_recorder.main.name
+  count      = var.enable_config ? 1 : 0
+  name       = aws_config_configuration_recorder.main[0].name
   is_enabled = true
 
   depends_on = [aws_config_delivery_channel.main]
 }
 
 resource "aws_config_delivery_channel" "main" {
+  count          = var.enable_config ? 1 : 0
   name           = "${var.environment}-config-delivery"
-  s3_bucket_name = aws_s3_bucket.config.id
+  s3_bucket_name = aws_s3_bucket.config[0].id
 
   depends_on = [aws_config_configuration_recorder.main]
 }
 
 resource "aws_s3_bucket" "config" {
+  count         = var.enable_config ? 1 : 0
   bucket        = "${var.environment}-config-logs-${local.account_id}"
   force_destroy = true
 
@@ -182,14 +187,16 @@ resource "aws_s3_bucket" "config" {
 }
 
 resource "aws_s3_bucket_versioning" "config" {
-  bucket = aws_s3_bucket.config.id
+  count  = var.enable_config ? 1 : 0
+  bucket = aws_s3_bucket.config[0].id
   versioning_configuration {
     status = "Enabled"
   }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "config" {
-  bucket = aws_s3_bucket.config.id
+  count  = var.enable_config ? 1 : 0
+  bucket = aws_s3_bucket.config[0].id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -199,7 +206,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "config" {
 }
 
 resource "aws_s3_bucket_public_access_block" "config" {
-  bucket = aws_s3_bucket.config.id
+  count  = var.enable_config ? 1 : 0
+  bucket = aws_s3_bucket.config[0].id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -208,7 +216,8 @@ resource "aws_s3_bucket_public_access_block" "config" {
 }
 
 resource "aws_s3_bucket_policy" "config" {
-  bucket = aws_s3_bucket.config.id
+  count  = var.enable_config ? 1 : 0
+  bucket = aws_s3_bucket.config[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -220,7 +229,7 @@ resource "aws_s3_bucket_policy" "config" {
           Service = "config.amazonaws.com"
         }
         Action   = "s3:GetBucketAcl"
-        Resource = aws_s3_bucket.config.arn
+        Resource = aws_s3_bucket.config[0].arn
       },
       {
         Sid    = "AWSConfigBucketDelivery"
@@ -229,7 +238,7 @@ resource "aws_s3_bucket_policy" "config" {
           Service = "config.amazonaws.com"
         }
         Action   = "s3:PutObject"
-        Resource = "${aws_s3_bucket.config.arn}/*"
+        Resource = "${aws_s3_bucket.config[0].arn}/*"
         Condition = {
           StringEquals = {
             "s3:x-amz-acl" = "bucket-owner-full-control"
@@ -241,7 +250,8 @@ resource "aws_s3_bucket_policy" "config" {
 }
 
 resource "aws_iam_role" "config" {
-  name = "${var.environment}-config-role"
+  count = var.enable_config ? 1 : 0
+  name  = "${var.environment}-config-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -258,13 +268,15 @@ resource "aws_iam_role" "config" {
 }
 
 resource "aws_iam_role_policy_attachment" "config" {
-  role       = aws_iam_role.config.name
+  count      = var.enable_config ? 1 : 0
+  role       = aws_iam_role.config[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWS_ConfigRole"
 }
 
 resource "aws_iam_role_policy" "config_s3" {
-  name = "${var.environment}-config-s3-policy"
-  role = aws_iam_role.config.id
+  count = var.enable_config ? 1 : 0
+  name  = "${var.environment}-config-s3-policy"
+  role  = aws_iam_role.config[0].id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -275,8 +287,8 @@ resource "aws_iam_role_policy" "config_s3" {
         "s3:GetBucketAcl"
       ]
       Resource = [
-        aws_s3_bucket.config.arn,
-        "${aws_s3_bucket.config.arn}/*"
+        aws_s3_bucket.config[0].arn,
+        "${aws_s3_bucket.config[0].arn}/*"
       ]
     }]
   })
@@ -287,7 +299,8 @@ resource "aws_iam_role_policy" "config_s3" {
 # ==========================================
 
 resource "aws_config_config_rule" "s3_bucket_public_read_prohibited" {
-  name = "s3-bucket-public-read-prohibited"
+  count = var.enable_config ? 1 : 0
+  name  = "s3-bucket-public-read-prohibited"
 
   source {
     owner             = "AWS"
@@ -298,7 +311,8 @@ resource "aws_config_config_rule" "s3_bucket_public_read_prohibited" {
 }
 
 resource "aws_config_config_rule" "ec2_instance_no_public_ip" {
-  name = "ec2-instance-no-public-ip"
+  count = var.enable_config ? 1 : 0
+  name  = "ec2-instance-no-public-ip"
 
   source {
     owner             = "AWS"
@@ -309,7 +323,8 @@ resource "aws_config_config_rule" "ec2_instance_no_public_ip" {
 }
 
 resource "aws_config_config_rule" "iam_root_access_key_check" {
-  name = "iam-root-access-key-check"
+  count = var.enable_config ? 1 : 0
+  name  = "iam-root-access-key-check"
 
   source {
     owner             = "AWS"
