@@ -1,0 +1,49 @@
+# Environment files
+.env
+.env.*
+*.local
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars.local
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# SSH Keys
+*.pem
+*.key
+id_rsa*
+
+# Secrets
+credentials*
+secrets*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
