@@ -27,59 +27,59 @@ endif
 
 # Default target
 help:
-	@echo ""
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(BLUE)           WIZ TECHNICAL EXERCISE - MAKEFILE                   $(NC)"
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(GREEN)BUILD & DEPLOY:$(NC)"
-	@echo "  make build          Deploy via GitHub Actions (recommended)"
-	@echo "  make deploy-local   Deploy locally with Terraform"
-	@echo "  make bootstrap      Create S3 state backend"
-	@echo "  make secrets        Setup GitHub secrets"
-	@echo "  make init           Terraform init"
-	@echo "  make plan           Terraform plan"
-	@echo "  make apply          Terraform apply"
-	@echo ""
-	@echo "$(GREEN)SSH ACCESS:$(NC)"
-	@echo "  make ssh-keys       Fetch and store SSH keys locally"
-	@echo "  make ssh-info       Show SSH connection commands"
-	@echo "  make ssh-mongodb    SSH to MongoDB instance"
-	@echo "  make ssh-wazuh      SSH to Wazuh instance"
-	@echo "  make ssh-redteam    SSH to Red Team instance"
-	@echo ""
-	@echo "$(RED)DESTROY & RESET:$(NC)"
-	@echo "  make destroy        Destroy via GitHub Actions"
-	@echo "  make destroy-local  Destroy locally with Terraform"
-	@echo "  make reset          Full reset (destroy + clean)"
-	@echo "  make clean          Remove local Terraform files"
-	@echo "  make force-destroy  Emergency force cleanup"
-	@echo ""
-	@echo "$(YELLOW)DEMOS:$(NC)"
-	@echo "  make demo           Interactive demo menu"
-	@echo "  make demo-s3        Public S3 bucket access"
-	@echo "  make demo-ssh       SSH to MongoDB"
-	@echo "  make demo-iam       Overprivileged IAM"
-	@echo "  make demo-k8s       K8s cluster-admin"
-	@echo "  make demo-secrets   K8s secrets exposure"
-	@echo "  make demo-redteam   SSH to red team instance"
-	@echo "  make demo-wazuh     Open Wazuh dashboard"
-	@echo "  make demo-attack    Full attack chain"
-	@echo ""
-	@echo "$(BLUE)STATUS & INFO:$(NC)"
-	@echo "  make show           Show all infrastructure"
-	@echo "  make status         Show deployment status"
-	@echo "  make outputs        Show Terraform outputs"
-	@echo "  make logs           Show latest workflow logs"
-	@echo "  make watch          Watch running workflow"
-	@echo ""
+	@printf "\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "$(BLUE)           WIZ TECHNICAL EXERCISE - MAKEFILE                   $(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "\n"
+	@printf "$(GREEN)BUILD & DEPLOY:$(NC)\n"
+	@printf "  make build          Deploy via GitHub Actions (recommended)\n"
+	@printf "  make deploy-local   Deploy locally with Terraform\n"
+	@printf "  make bootstrap      Create S3 state backend\n"
+	@printf "  make secrets        Setup GitHub secrets\n"
+	@printf "  make init           Terraform init\n"
+	@printf "  make plan           Terraform plan\n"
+	@printf "  make apply          Terraform apply\n"
+	@printf "\n"
+	@printf "$(GREEN)SSH ACCESS:$(NC)\n"
+	@printf "  make ssh-keys       Fetch and store SSH keys locally\n"
+	@printf "  make ssh-info       Show SSH connection commands\n"
+	@printf "  make ssh-mongodb    SSH to MongoDB instance\n"
+	@printf "  make ssh-wazuh      SSH to Wazuh instance\n"
+	@printf "  make ssh-redteam    SSH to Red Team instance\n"
+	@printf "\n"
+	@printf "$(RED)DESTROY & RESET:$(NC)\n"
+	@printf "  make destroy        Destroy via GitHub Actions\n"
+	@printf "  make destroy-local  Destroy locally with Terraform\n"
+	@printf "  make reset          Full reset (destroy + clean)\n"
+	@printf "  make clean          Remove local Terraform files\n"
+	@printf "  make force-destroy  Emergency force cleanup\n"
+	@printf "\n"
+	@printf "$(YELLOW)DEMOS:$(NC)\n"
+	@printf "  make demo           Interactive demo menu\n"
+	@printf "  make demo-s3        Public S3 bucket access\n"
+	@printf "  make demo-ssh       SSH to MongoDB\n"
+	@printf "  make demo-iam       Overprivileged IAM\n"
+	@printf "  make demo-k8s       K8s cluster-admin\n"
+	@printf "  make demo-secrets   K8s secrets exposure\n"
+	@printf "  make demo-redteam   SSH to red team instance\n"
+	@printf "  make demo-wazuh     Open Wazuh dashboard\n"
+	@printf "  make demo-attack    Full attack chain\n"
+	@printf "\n"
+	@printf "$(BLUE)STATUS & INFO:$(NC)\n"
+	@printf "  make show           Show all infrastructure\n"
+	@printf "  make status         Show deployment status\n"
+	@printf "  make outputs        Show Terraform outputs\n"
+	@printf "  make logs           Show latest workflow logs\n"
+	@printf "  make watch          Watch running workflow\n"
+	@printf "\n"
 
 #═══════════════════════════════════════════════════════════════
 # BUILD & DEPLOY
 #═══════════════════════════════════════════════════════════════
 
 build: ## Deploy via GitHub Actions
-	@echo "$(GREEN)Deploying via GitHub Actions...$(NC)"
+	@printf "$(GREEN)Deploying via GitHub Actions...$(NC)\n"
 	@gh workflow run "Deploy Infrastructure" --field action=apply
 	@sleep 5
 	@$(MAKE) watch
@@ -88,16 +88,16 @@ build: ## Deploy via GitHub Actions
 deploy: build
 
 deploy-local: init ## Deploy locally with Terraform
-	@echo "$(GREEN)Deploying locally...$(NC)"
+	@printf "$(GREEN)Deploying locally...$(NC)\n"
 	@cd $(TF_DIR) && terraform apply -var-file="environments/demo.tfvars" -auto-approve
 	@$(MAKE) ssh-keys
 
 bootstrap: ## Create S3 state backend
-	@echo "$(GREEN)Bootstrapping Terraform state backend...$(NC)"
+	@printf "$(GREEN)Bootstrapping Terraform state backend...$(NC)\n"
 	@cd $(BOOTSTRAP_DIR) && terraform init && terraform apply -auto-approve
 
 secrets: ## Setup GitHub secrets
-	@echo "$(GREEN)Setting up GitHub secrets...$(NC)"
+	@printf "$(GREEN)Setting up GitHub secrets...$(NC)\n"
 	@gh secret set AWS_ACCESS_KEY_ID --body "$$AWS_ACCESS_KEY_ID"
 	@gh secret set AWS_SECRET_ACCESS_KEY --body "$$AWS_SECRET_ACCESS_KEY"
 	@gh secret set MONGODB_ADMIN_PASS --body "$${MONGODB_ADMIN_PASS:-$$(openssl rand -base64 16)}"
@@ -105,7 +105,7 @@ secrets: ## Setup GitHub secrets
 	@gh secret set BACKUP_ENCRYPTION_KEY --body "$${BACKUP_ENCRYPTION_KEY:-$$(openssl rand -base64 32)}"
 	@gh secret set WAZUH_ADMIN_PASS --body "$${WAZUH_ADMIN_PASS:-$$(openssl rand -base64 16)}"
 	@gh secret set WAZUH_API_PASS --body "$${WAZUH_API_PASS:-$$(openssl rand -base64 16)}"
-	@echo "$(GREEN)Secrets configured!$(NC)"
+	@printf "$(GREEN)Secrets configured!$(NC)\n"
 
 init: ## Terraform init
 	@cd $(TF_DIR) && terraform init
@@ -118,7 +118,7 @@ apply: init ## Terraform apply
 	@$(MAKE) ssh-keys
 
 ssh-keys: ## Fetch and store SSH keys locally
-	@echo "$(GREEN)Fetching SSH keys from AWS SSM...$(NC)"
+	@printf "$(GREEN)Fetching SSH keys from AWS SSM...$(NC)\n"
 	@mkdir -p keys
 	@# MongoDB key
 	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
@@ -126,47 +126,47 @@ ssh-keys: ## Fetch and store SSH keys locally
 		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/mongodb.pem 2>/dev/null && \
 		chmod 600 keys/mongodb.pem && \
-		echo -e "$(GREEN)[OK]$(NC) keys/mongodb.pem" || \
-		echo -e "$(YELLOW)[SKIP]$(NC) MongoDB key not available"'
+		printf "$(GREEN)[OK]$(NC) keys/mongodb.pem\n" || \
+		printf "$(YELLOW)[SKIP]$(NC) MongoDB key not available\n"'
 	@# Wazuh key
 	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
 		aws ssm get-parameter --name /wiz-exercise/wazuh/ssh-private-key \
 		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/wazuh.pem 2>/dev/null && \
 		chmod 600 keys/wazuh.pem && \
-		echo -e "$(GREEN)[OK]$(NC) keys/wazuh.pem" || \
-		echo -e "$(YELLOW)[SKIP]$(NC) Wazuh key not available"'
+		printf "$(GREEN)[OK]$(NC) keys/wazuh.pem\n" || \
+		printf "$(YELLOW)[SKIP]$(NC) Wazuh key not available\n"'
 	@# Red Team key
 	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
 		aws ssm get-parameter --name /wiz-exercise/redteam/ssh-private-key \
 		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/redteam.pem 2>/dev/null && \
 		chmod 600 keys/redteam.pem && \
-		echo -e "$(GREEN)[OK]$(NC) keys/redteam.pem" || \
-		echo -e "$(YELLOW)[SKIP]$(NC) Red Team key not available"'
-	@echo ""
+		printf "$(GREEN)[OK]$(NC) keys/redteam.pem\n" || \
+		printf "$(YELLOW)[SKIP]$(NC) Red Team key not available\n"'
+	@printf "\n"
 	@$(MAKE) ssh-info
 
 ssh-info: ## Show SSH connection commands
-	@echo ""
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(BLUE)                    SSH CONNECTION INFO                         $(NC)"
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo ""
+	@printf "\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "$(BLUE)                    SSH CONNECTION INFO                         $(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "\n"
 	@cd $(TF_DIR) && \
 	MONGODB_IP=$$(terraform output -raw mongodb_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	WAZUH_IP=$$(terraform output -raw wazuh_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	REDTEAM_IP=$$(terraform output -raw redteam_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	if [ -n "$$MONGODB_IP" ]; then \
-		echo "$(GREEN)MongoDB:$(NC)    ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP"; \
-		echo "$(GREEN)Wazuh:$(NC)      ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP"; \
-		echo "$(GREEN)Dashboard:$(NC)  https://$$WAZUH_IP (user: admin)"; \
-		echo "$(GREEN)Red Team:$(NC)   ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP"; \
+		printf "$(GREEN)MongoDB:$(NC)    ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP\n"; \
+		printf "$(GREEN)Wazuh:$(NC)      ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP\n"; \
+		printf "$(GREEN)Dashboard:$(NC)  https://$$WAZUH_IP (user: admin)\n"; \
+		printf "$(GREEN)Red Team:$(NC)   ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP\n"; \
 	else \
-		echo "$(YELLOW)No infrastructure deployed. Run 'make build' first.$(NC)"; \
+		printf "$(YELLOW)No infrastructure deployed. Run 'make build' first.$(NC)\n"; \
 	fi
-	@echo ""
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
+	@printf "\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
 
 ssh-mongodb: ## SSH to MongoDB instance
 	@test -f keys/mongodb.pem || $(MAKE) ssh-keys
@@ -188,30 +188,30 @@ ssh-redteam: ## SSH to Red Team instance
 #═══════════════════════════════════════════════════════════════
 
 destroy: ## Destroy via GitHub Actions
-	@echo "$(RED)Destroying infrastructure via GitHub Actions...$(NC)"
+	@printf "$(RED)Destroying infrastructure via GitHub Actions...$(NC)\n"
 	@read -p "Type DESTROY to confirm: " confirm && [ "$$confirm" = "DESTROY" ] || exit 1
 	@gh workflow run "Deploy Infrastructure" --field action=destroy
 	@sleep 5
 	@$(MAKE) watch
 
 destroy-local: ## Destroy locally with Terraform
-	@echo "$(RED)Destroying infrastructure locally...$(NC)"
+	@printf "$(RED)Destroying infrastructure locally...$(NC)\n"
 	@read -p "Type DESTROY to confirm: " confirm && [ "$$confirm" = "DESTROY" ] || exit 1
 	@cd $(TF_DIR) && terraform destroy -var-file="environments/demo.tfvars" -auto-approve
 
 reset: destroy clean ## Full reset (destroy + clean)
-	@echo "$(GREEN)Reset complete!$(NC)"
+	@printf "$(GREEN)Reset complete!$(NC)\n"
 
 clean: ## Remove local Terraform files and keys
-	@echo "$(YELLOW)Cleaning local files...$(NC)"
+	@printf "$(YELLOW)Cleaning local files...$(NC)\n"
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/.terraform.lock.hcl
 	@rm -f $(TF_DIR)/tfplan* $(TF_DIR)/terraform.tfstate*
 	@rm -rf $(BOOTSTRAP_DIR)/.terraform $(BOOTSTRAP_DIR)/.terraform.lock.hcl
 	@rm -rf keys/
-	@echo "$(GREEN)Clean complete!$(NC)"
+	@printf "$(GREEN)Clean complete!$(NC)\n"
 
 force-destroy: ## Emergency force cleanup
-	@echo "$(RED)EMERGENCY FORCE CLEANUP$(NC)"
+	@printf "$(RED)EMERGENCY FORCE CLEANUP$(NC)\n"
 	@read -p "Type FORCE to confirm: " confirm && [ "$$confirm" = "FORCE" ] || exit 1
 	@# Terminate EC2
 	@aws ec2 describe-instances --filters "Name=tag:Project,Values=wiz-exercise" \
@@ -225,151 +225,151 @@ force-destroy: ## Emergency force cleanup
 		aws s3 rm s3://$$b --recursive --region $(AWS_REGION) 2>/dev/null || true; \
 		aws s3 rb s3://$$b --force --region $(AWS_REGION) 2>/dev/null || true; \
 	done
-	@echo "$(YELLOW)Force cleanup initiated. Resources may take time to delete.$(NC)"
+	@printf "$(YELLOW)Force cleanup initiated. Resources may take time to delete.$(NC)\n"
 
 #═══════════════════════════════════════════════════════════════
 # DEMOS
 #═══════════════════════════════════════════════════════════════
 
 demo: ## Interactive demo menu
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(BLUE)                  VULNERABILITY DEMOS                          $(NC)"
-	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "  1) make demo-s3       - Public S3 bucket access"
-	@echo "  2) make demo-ssh      - SSH to exposed MongoDB"
-	@echo "  3) make demo-iam      - Overprivileged IAM role"
-	@echo "  4) make demo-k8s      - K8s cluster-admin abuse"
-	@echo "  5) make demo-secrets  - K8s secrets exposure"
-	@echo "  6) make demo-redteam  - SSH to red team instance"
-	@echo "  7) make demo-wazuh    - Wazuh SIEM dashboard"
-	@echo "  8) make demo-attack   - Full attack chain"
-	@echo ""
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "$(BLUE)                  VULNERABILITY DEMOS                          $(NC)\n"
+	@printf "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "\n"
+	@printf "  1) make demo-s3       - Public S3 bucket access\n"
+	@printf "  2) make demo-ssh      - SSH to exposed MongoDB\n"
+	@printf "  3) make demo-iam      - Overprivileged IAM role\n"
+	@printf "  4) make demo-k8s      - K8s cluster-admin abuse\n"
+	@printf "  5) make demo-secrets  - K8s secrets exposure\n"
+	@printf "  6) make demo-redteam  - SSH to red team instance\n"
+	@printf "  7) make demo-wazuh    - Wazuh SIEM dashboard\n"
+	@printf "  8) make demo-attack   - Full attack chain\n"
+	@printf "\n"
 
 demo-s3: ## Demo: Public S3 bucket access
-	@echo "$(RED)[VULNERABILITY] S3 bucket publicly accessible$(NC)"
+	@printf "$(RED)[VULNERABILITY] S3 bucket publicly accessible$(NC)\n"
 	@BUCKET=$$(cd $(TF_DIR) && terraform output -raw backup_bucket_name 2>/dev/null) && \
-	echo "$(YELLOW)Listing bucket without authentication:$(NC)" && \
-	echo "aws s3 ls s3://$$BUCKET --no-sign-request" && \
+	printf "$(YELLOW)Listing bucket without authentication:$(NC)\n" && \
+	printf "aws s3 ls s3://$$BUCKET --no-sign-request\n" && \
 	aws s3 ls s3://$$BUCKET --no-sign-request && \
-	echo "" && \
-	echo "$(YELLOW)Reading file from public bucket:$(NC)" && \
+	printf "\n" && \
+	printf "$(YELLOW)Reading file from public bucket:$(NC)\n" && \
 	aws s3 cp s3://$$BUCKET/README.txt - --no-sign-request 2>/dev/null || true
 
 demo-ssh: ## Demo: SSH to MongoDB
-	@echo "$(RED)[VULNERABILITY] MongoDB SSH exposed to internet$(NC)"
+	@printf "$(RED)[VULNERABILITY] MongoDB SSH exposed to internet$(NC)\n"
 	@test -f keys/mongodb.pem || $(MAKE) ssh-keys
 	@IP=$$(cd $(TF_DIR) && terraform output -raw mongodb_public_ip 2>/dev/null) && \
-	echo "MongoDB IP: $$IP" && \
-	echo "$(YELLOW)Connecting...$(NC)" && \
+	printf "MongoDB IP: $$IP\n" && \
+	printf "$(YELLOW)Connecting...$(NC)\n" && \
 	ssh -o StrictHostKeyChecking=no -i keys/mongodb.pem ubuntu@$$IP
 
 demo-iam: ## Demo: Overprivileged IAM role
-	@echo "$(RED)[VULNERABILITY] MongoDB has overprivileged IAM role$(NC)"
-	@echo ""
-	@echo "The MongoDB instance role has these dangerous permissions:"
-	@echo "  - s3:* on all resources"
-	@echo "  - ec2:Describe* on all resources"
-	@echo "  - iam:Get*, iam:List* on all resources"
-	@echo "  - secretsmanager:GetSecretValue on all resources"
-	@echo ""
-	@echo "$(YELLOW)From MongoDB instance, attacker can run:$(NC)"
-	@echo "  aws s3 ls"
-	@echo "  aws ec2 describe-instances"
-	@echo "  aws iam list-users"
-	@echo "  aws secretsmanager list-secrets"
+	@printf "$(RED)[VULNERABILITY] MongoDB has overprivileged IAM role$(NC)\n"
+	@printf "\n"
+	@printf "The MongoDB instance role has these dangerous permissions:\n"
+	@printf "  - s3:* on all resources\n"
+	@printf "  - ec2:Describe* on all resources\n"
+	@printf "  - iam:Get*, iam:List* on all resources\n"
+	@printf "  - secretsmanager:GetSecretValue on all resources\n"
+	@printf "\n"
+	@printf "$(YELLOW)From MongoDB instance, attacker can run:$(NC)\n"
+	@printf "  aws s3 ls\n"
+	@printf "  aws ec2 describe-instances\n"
+	@printf "  aws iam list-users\n"
+	@printf "  aws secretsmanager list-secrets\n"
 
 demo-k8s: ## Demo: K8s cluster-admin ServiceAccount
-	@echo "$(RED)[VULNERABILITY] App ServiceAccount has cluster-admin$(NC)"
+	@printf "$(RED)[VULNERABILITY] App ServiceAccount has cluster-admin$(NC)\n"
 	@aws eks update-kubeconfig --name wiz-exercise-eks --region $(AWS_REGION) 2>/dev/null
-	@echo ""
-	@echo "$(YELLOW)ClusterRoleBinding:$(NC)"
+	@printf "\n"
+	@printf "$(YELLOW)ClusterRoleBinding:$(NC)\n"
 	@kubectl get clusterrolebinding tasky-cluster-admin -o yaml | head -25
-	@echo ""
-	@echo "$(YELLOW)Any pod in tasky namespace can:$(NC)"
-	@echo "  - Access secrets in ALL namespaces"
-	@echo "  - Create/delete any resource"
-	@echo "  - Deploy malicious workloads"
+	@printf "\n"
+	@printf "$(YELLOW)Any pod in tasky namespace can:$(NC)\n"
+	@printf "  - Access secrets in ALL namespaces\n"
+	@printf "  - Create/delete any resource\n"
+	@printf "  - Deploy malicious workloads\n"
 
 demo-secrets: ## Demo: K8s secrets exposure
-	@echo "$(RED)[VULNERABILITY] Secrets stored as base64 (not encrypted)$(NC)"
+	@printf "$(RED)[VULNERABILITY] Secrets stored as base64 (not encrypted)$(NC)\n"
 	@aws eks update-kubeconfig --name wiz-exercise-eks --region $(AWS_REGION) 2>/dev/null
-	@echo ""
-	@echo "$(YELLOW)Secrets in tasky namespace:$(NC)"
+	@printf "\n"
+	@printf "$(YELLOW)Secrets in tasky namespace:$(NC)\n"
 	@kubectl get secrets -n tasky
-	@echo ""
-	@echo "$(YELLOW)Decoded MongoDB URI:$(NC)"
-	@kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.MONGODB_URI}' | base64 -d && echo ""
-	@echo ""
-	@echo "$(YELLOW)Decoded JWT Secret:$(NC)"
-	@kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.SECRET_KEY}' | base64 -d && echo ""
+	@printf "\n"
+	@printf "$(YELLOW)Decoded MongoDB URI:$(NC)\n"
+	@kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.MONGODB_URI}' | base64 -d && printf "\n"
+	@printf "\n"
+	@printf "$(YELLOW)Decoded JWT Secret:$(NC)\n"
+	@kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.SECRET_KEY}' | base64 -d && printf "\n"
 
 demo-redteam: ## Demo: SSH to red team instance
-	@echo "$(GREEN)Red Team Instance - Pre-installed attack tools$(NC)"
+	@printf "$(GREEN)Red Team Instance - Pre-installed attack tools$(NC)\n"
 	@test -f keys/redteam.pem || $(MAKE) ssh-keys
 	@IP=$$(cd $(TF_DIR) && terraform output -raw redteam_public_ip 2>/dev/null) && \
-	echo "Red Team IP: $$IP" && \
-	echo "$(YELLOW)Connecting...$(NC)" && \
+	printf "Red Team IP: $$IP\n" && \
+	printf "$(YELLOW)Connecting...$(NC)\n" && \
 	ssh -o StrictHostKeyChecking=no -i keys/redteam.pem ubuntu@$$IP
 
 demo-wazuh: ## Demo: Open Wazuh dashboard
-	@echo "$(GREEN)Wazuh SIEM Dashboard$(NC)"
+	@printf "$(GREEN)Wazuh SIEM Dashboard$(NC)\n"
 	@IP=$$(cd $(TF_DIR) && terraform output -raw wazuh_public_ip 2>/dev/null) && \
-	echo "URL: https://$$IP" && \
-	echo "Username: admin" && \
-	echo "" && \
-	xdg-open "https://$$IP" 2>/dev/null || open "https://$$IP" 2>/dev/null || echo "Open https://$$IP in browser"
+	printf "URL: https://$$IP\n" && \
+	printf "Username: admin\n" && \
+	printf "\n" && \
+	xdg-open "https://$$IP" 2>/dev/null || open "https://$$IP" 2>/dev/null || printf "Open https://$$IP in browser\n"
 
 demo-attack: ## Demo: Full attack chain walkthrough
-	@echo "$(RED)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo "$(RED)                    FULL ATTACK CHAIN                          $(NC)"
-	@echo "$(RED)═══════════════════════════════════════════════════════════════$(NC)"
-	@echo ""
-	@echo "$(RED)Step 1: Discover public S3 bucket$(NC)"
-	@echo "  - Find publicly accessible backup bucket"
-	@echo "  - Download sensitive data/credentials"
-	@echo ""
-	@echo "$(RED)Step 2: SSH to MongoDB (port 22 exposed)$(NC)"
-	@echo "  - Scan for open SSH ports"
-	@echo "  - Exploit weak credentials or CVEs"
-	@echo ""
-	@echo "$(RED)Step 3: Abuse overprivileged IAM role$(NC)"
-	@echo "  - Use instance role to access AWS APIs"
-	@echo "  - Enumerate S3, EC2, IAM, Secrets Manager"
-	@echo ""
-	@echo "$(RED)Step 4: Access EKS cluster$(NC)"
-	@echo "  - Use discovered credentials for K8s"
-	@echo "  - ServiceAccount has cluster-admin"
-	@echo ""
-	@echo "$(RED)Step 5: Full cluster takeover$(NC)"
-	@echo "  - Access all secrets across namespaces"
-	@echo "  - Deploy cryptominers/backdoors"
-	@echo "  - Pivot to other AWS resources"
-	@echo ""
+	@printf "$(RED)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "$(RED)                    FULL ATTACK CHAIN                          $(NC)\n"
+	@printf "$(RED)═══════════════════════════════════════════════════════════════$(NC)\n"
+	@printf "\n"
+	@printf "$(RED)Step 1: Discover public S3 bucket$(NC)\n"
+	@printf "  - Find publicly accessible backup bucket\n"
+	@printf "  - Download sensitive data/credentials\n"
+	@printf "\n"
+	@printf "$(RED)Step 2: SSH to MongoDB (port 22 exposed)$(NC)\n"
+	@printf "  - Scan for open SSH ports\n"
+	@printf "  - Exploit weak credentials or CVEs\n"
+	@printf "\n"
+	@printf "$(RED)Step 3: Abuse overprivileged IAM role$(NC)\n"
+	@printf "  - Use instance role to access AWS APIs\n"
+	@printf "  - Enumerate S3, EC2, IAM, Secrets Manager\n"
+	@printf "\n"
+	@printf "$(RED)Step 4: Access EKS cluster$(NC)\n"
+	@printf "  - Use discovered credentials for K8s\n"
+	@printf "  - ServiceAccount has cluster-admin\n"
+	@printf "\n"
+	@printf "$(RED)Step 5: Full cluster takeover$(NC)\n"
+	@printf "  - Access all secrets across namespaces\n"
+	@printf "  - Deploy cryptominers/backdoors\n"
+	@printf "  - Pivot to other AWS resources\n"
+	@printf "\n"
 
 #═══════════════════════════════════════════════════════════════
 # STATUS & INFO
 #═══════════════════════════════════════════════════════════════
 
 show: ## Show all infrastructure
-	@echo "$(BLUE)EC2 Instances:$(NC)"
+	@printf "$(BLUE)EC2 Instances:$(NC)\n"
 	@aws ec2 describe-instances --filters "Name=tag:Project,Values=wiz-exercise" \
 		--query 'Reservations[*].Instances[*].{Name:Tags[?Key==`Name`].Value|[0],ID:InstanceId,State:State.Name,PublicIP:PublicIpAddress}' \
-		--output table --region $(AWS_REGION) 2>/dev/null || echo "  None"
-	@echo ""
-	@echo "$(BLUE)S3 Buckets:$(NC)"
-	@aws s3 ls --region $(AWS_REGION) 2>/dev/null | grep wiz || echo "  None"
-	@echo ""
-	@echo "$(BLUE)EKS Cluster:$(NC)"
+		--output table --region $(AWS_REGION) 2>/dev/null || printf "  None\n"
+	@printf "\n"
+	@printf "$(BLUE)S3 Buckets:$(NC)\n"
+	@aws s3 ls --region $(AWS_REGION) 2>/dev/null | grep wiz || printf "  None\n"
+	@printf "\n"
+	@printf "$(BLUE)EKS Cluster:$(NC)\n"
 	@aws eks describe-cluster --name wiz-exercise-eks --region $(AWS_REGION) \
-		--query 'cluster.{name:name,status:status,version:version}' --output table 2>/dev/null || echo "  None"
-	@echo ""
-	@echo "$(BLUE)K8s Pods:$(NC)"
+		--query 'cluster.{name:name,status:status,version:version}' --output table 2>/dev/null || printf "  None\n"
+	@printf "\n"
+	@printf "$(BLUE)K8s Pods:$(NC)\n"
 	@aws eks update-kubeconfig --name wiz-exercise-eks --region $(AWS_REGION) 2>/dev/null && \
-		kubectl get pods -A 2>/dev/null || echo "  None"
+		kubectl get pods -A 2>/dev/null || printf "  None\n"
 
 status: ## Show deployment status
-	@echo "$(BLUE)Latest GitHub Actions runs:$(NC)"
+	@printf "$(BLUE)Latest GitHub Actions runs:$(NC)\n"
 	@gh run list --workflow="Deploy Infrastructure" --limit 5
 
 outputs: ## Show Terraform outputs
