@@ -15,7 +15,7 @@ mongodb_app_user      = "appuser"
 mongodb_database      = "tasky"
 
 # EKS
-kubernetes_version      = "1.28"
+kubernetes_version      = "1.30"
 eks_node_instance_types = ["t3.medium"]
 eks_node_desired_size   = 2
 eks_node_min_size       = 1
