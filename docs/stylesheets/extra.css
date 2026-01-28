@@ -1,0 +1,102 @@
+/* Custom styles for Wiz Technical Exercise Documentation */
+
+/* Severity colors for vulnerability tables */
+.md-typeset table td:first-child {
+    font-weight: 500;
+}
+
+/* Critical severity */
+.md-typeset .critical {
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+/* High severity */
+.md-typeset .high {
+    color: #f57c00;
+    font-weight: bold;
+}
+
+/* Medium severity */
+.md-typeset .medium {
+    color: #fbc02d;
+}
+
+/* Low severity */
+.md-typeset .low {
+    color: #388e3c;
+}
+
+/* Code block styling */
+.md-typeset pre > code {
+    font-size: 0.85em;
+}
+
+/* Terminal output styling */
+.md-typeset .terminal {
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1em;
+    border-radius: 4px;
+}
+
+/* Mermaid diagram adjustments */
+.mermaid {
+    text-align: center;
+    margin: 1em 0;
+}
+
+/* Attack chain flow styling */
+.md-typeset .attack-flow {
+    border-left: 4px solid #d32f2f;
+    padding-left: 1em;
+    margin: 1em 0;
+}
+
+/* Command reference styling */
+.md-typeset .command-ref {
+    font-family: monospace;
+    background-color: var(--md-code-bg-color);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+}
+
+/* Table improvements */
+.md-typeset table:not([class]) {
+    display: table;
+    width: 100%;
+}
+
+.md-typeset table:not([class]) th {
+    background-color: var(--md-default-fg-color--lightest);
+}
+
+/* Admonition customization for security content */
+.md-typeset .admonition.danger {
+    border-color: #d32f2f;
+}
+
+.md-typeset .admonition.danger > .admonition-title::before {
+    background-color: #d32f2f;
+}
+
+/* Navigation improvements */
+.md-nav__link {
+    font-size: 0.9rem;
+}
+
+/* Footer styling */
+.md-footer-meta {
+    background-color: var(--md-default-bg-color--lighter);
+}
+
+/* Print styles */
+@media print {
+    .md-sidebar {
+        display: none;
+    }
+
+    .md-content {
+        margin-left: 0;
+    }
+}
