@@ -16,6 +16,7 @@ override.tf.json
 *_override.tf.json
 
 # SSH Keys
+keys/
 *.pem
 *.key
 id_rsa*

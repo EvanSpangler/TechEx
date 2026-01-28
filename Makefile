@@ -3,7 +3,7 @@
 
 .PHONY: help build deploy destroy reset demo clean bootstrap secrets init plan apply outputs \
         demo-s3 demo-ssh demo-iam demo-k8s demo-secrets demo-redteam demo-wazuh demo-attack \
-        show status logs watch
+        show status logs watch ssh-keys ssh-info ssh-mongodb ssh-wazuh ssh-redteam
 
 # Configuration
 SHELL := /bin/bash
@@ -41,6 +41,13 @@ help:
 	@echo "  make plan           Terraform plan"
 	@echo "  make apply          Terraform apply"
 	@echo ""
+	@echo "$(GREEN)SSH ACCESS:$(NC)"
+	@echo "  make ssh-keys       Fetch and store SSH keys locally"
+	@echo "  make ssh-info       Show SSH connection commands"
+	@echo "  make ssh-mongodb    SSH to MongoDB instance"
+	@echo "  make ssh-wazuh      SSH to Wazuh instance"
+	@echo "  make ssh-redteam    SSH to Red Team instance"
+	@echo ""
 	@echo "$(RED)DESTROY & RESET:$(NC)"
 	@echo "  make destroy        Destroy via GitHub Actions"
 	@echo "  make destroy-local  Destroy locally with Terraform"
@@ -76,13 +83,14 @@ build: ## Deploy via GitHub Actions
 	@gh workflow run "Deploy Infrastructure" --field action=apply
 	@sleep 5
 	@$(MAKE) watch
+	@$(MAKE) ssh-keys
 
 deploy: build
 
 deploy-local: init ## Deploy locally with Terraform
 	@echo "$(GREEN)Deploying locally...$(NC)"
 	@cd $(TF_DIR) && terraform apply -var-file="environments/demo.tfvars" -auto-approve
-	@$(MAKE) outputs
+	@$(MAKE) ssh-keys
 
 bootstrap: ## Create S3 state backend
 	@echo "$(GREEN)Bootstrapping Terraform state backend...$(NC)"
@@ -107,6 +115,69 @@ plan: init ## Terraform plan
 
 apply: init ## Terraform apply
 	@cd $(TF_DIR) && terraform apply -var-file="environments/demo.tfvars"
+	@$(MAKE) ssh-keys
+
+ssh-keys: ## Fetch and store SSH keys locally
+	@echo "$(GREEN)Fetching SSH keys from AWS SSM...$(NC)"
+	@mkdir -p keys
+	@# MongoDB key
+	@aws ssm get-parameter --name /wiz-exercise/mongodb/ssh-private-key \
+		--with-decryption --query 'Parameter.Value' --output text \
+		--region $(AWS_REGION) > keys/mongodb.pem 2>/dev/null && \
+		chmod 600 keys/mongodb.pem && \
+		echo "$(GREEN)[OK]$(NC) keys/mongodb.pem" || \
+		echo "$(YELLOW)[SKIP]$(NC) MongoDB key not available"
+	@# Wazuh key
+	@aws ssm get-parameter --name /wiz-exercise/wazuh/ssh-private-key \
+		--with-decryption --query 'Parameter.Value' --output text \
+		--region $(AWS_REGION) > keys/wazuh.pem 2>/dev/null && \
+		chmod 600 keys/wazuh.pem && \
+		echo "$(GREEN)[OK]$(NC) keys/wazuh.pem" || \
+		echo "$(YELLOW)[SKIP]$(NC) Wazuh key not available"
+	@# Red Team key
+	@aws ssm get-parameter --name /wiz-exercise/redteam/ssh-private-key \
+		--with-decryption --query 'Parameter.Value' --output text \
+		--region $(AWS_REGION) > keys/redteam.pem 2>/dev/null && \
+		chmod 600 keys/redteam.pem && \
+		echo "$(GREEN)[OK]$(NC) keys/redteam.pem" || \
+		echo "$(YELLOW)[SKIP]$(NC) Red Team key not available"
+	@echo ""
+	@$(MAKE) ssh-info
+
+ssh-info: ## Show SSH connection commands
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo "$(BLUE)                    SSH CONNECTION INFO                         $(NC)"
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
+	@echo ""
+	@MONGODB_IP=$$(cd $(TF_DIR) && terraform output -raw mongodb_public_ip 2>/dev/null) && \
+		echo "$(GREEN)MongoDB:$(NC)" && \
+		echo "  ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP" || true
+	@echo ""
+	@WAZUH_IP=$$(cd $(TF_DIR) && terraform output -raw wazuh_public_ip 2>/dev/null) && \
+		echo "$(GREEN)Wazuh:$(NC)" && \
+		echo "  ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP" && \
+		echo "  Dashboard: https://$$WAZUH_IP (admin)" || true
+	@echo ""
+	@REDTEAM_IP=$$(cd $(TF_DIR) && terraform output -raw redteam_public_ip 2>/dev/null) && \
+		echo "$(GREEN)Red Team:$(NC)" && \
+		echo "  ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP" || true
+	@echo ""
+	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
+
+ssh-mongodb: ## SSH to MongoDB instance
+	@test -f keys/mongodb.pem || $(MAKE) ssh-keys
+	@IP=$$(cd $(TF_DIR) && terraform output -raw mongodb_public_ip 2>/dev/null) && \
+	ssh -o StrictHostKeyChecking=no -i keys/mongodb.pem ubuntu@$$IP
+
+ssh-wazuh: ## SSH to Wazuh instance
+	@test -f keys/wazuh.pem || $(MAKE) ssh-keys
+	@IP=$$(cd $(TF_DIR) && terraform output -raw wazuh_public_ip 2>/dev/null) && \
+	ssh -o StrictHostKeyChecking=no -i keys/wazuh.pem ubuntu@$$IP
+
+ssh-redteam: ## SSH to Red Team instance
+	@test -f keys/redteam.pem || $(MAKE) ssh-keys
+	@IP=$$(cd $(TF_DIR) && terraform output -raw redteam_public_ip 2>/dev/null) && \
+	ssh -o StrictHostKeyChecking=no -i keys/redteam.pem ubuntu@$$IP
 
 #═══════════════════════════════════════════════════════════════
 # DESTROY & RESET
@@ -127,12 +198,12 @@ destroy-local: ## Destroy locally with Terraform
 reset: destroy clean ## Full reset (destroy + clean)
 	@echo "$(GREEN)Reset complete!$(NC)"
 
-clean: ## Remove local Terraform files
+clean: ## Remove local Terraform files and keys
 	@echo "$(YELLOW)Cleaning local files...$(NC)"
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/.terraform.lock.hcl
 	@rm -f $(TF_DIR)/tfplan* $(TF_DIR)/terraform.tfstate*
 	@rm -rf $(BOOTSTRAP_DIR)/.terraform $(BOOTSTRAP_DIR)/.terraform.lock.hcl
-	@rm -f /tmp/mongodb-key.pem /tmp/wazuh-key.pem /tmp/redteam-key.pem
+	@rm -rf keys/
 	@echo "$(GREEN)Clean complete!$(NC)"
 
 force-destroy: ## Emergency force cleanup
@@ -183,13 +254,11 @@ demo-s3: ## Demo: Public S3 bucket access
 
 demo-ssh: ## Demo: SSH to MongoDB
 	@echo "$(RED)[VULNERABILITY] MongoDB SSH exposed to internet$(NC)"
+	@test -f keys/mongodb.pem || $(MAKE) ssh-keys
 	@IP=$$(cd $(TF_DIR) && terraform output -raw mongodb_public_ip 2>/dev/null) && \
-	KEY=$$(cd $(TF_DIR) && terraform output -raw mongodb_ssh_key_ssm 2>/dev/null) && \
 	echo "MongoDB IP: $$IP" && \
-	echo "$(YELLOW)Getting SSH key and connecting...$(NC)" && \
-	aws ssm get-parameter --name $$KEY --with-decryption --query 'Parameter.Value' --output text --region $(AWS_REGION) > /tmp/mongodb-key.pem && \
-	chmod 600 /tmp/mongodb-key.pem && \
-	ssh -o StrictHostKeyChecking=no -i /tmp/mongodb-key.pem ubuntu@$$IP
+	echo "$(YELLOW)Connecting...$(NC)" && \
+	ssh -o StrictHostKeyChecking=no -i keys/mongodb.pem ubuntu@$$IP
 
 demo-iam: ## Demo: Overprivileged IAM role
 	@echo "$(RED)[VULNERABILITY] MongoDB has overprivileged IAM role$(NC)"
@@ -233,13 +302,11 @@ demo-secrets: ## Demo: K8s secrets exposure
 
 demo-redteam: ## Demo: SSH to red team instance
 	@echo "$(GREEN)Red Team Instance - Pre-installed attack tools$(NC)"
+	@test -f keys/redteam.pem || $(MAKE) ssh-keys
 	@IP=$$(cd $(TF_DIR) && terraform output -raw redteam_public_ip 2>/dev/null) && \
-	KEY=$$(cd $(TF_DIR) && terraform output -raw redteam_ssh_key_ssm 2>/dev/null) && \
 	echo "Red Team IP: $$IP" && \
 	echo "$(YELLOW)Connecting...$(NC)" && \
-	aws ssm get-parameter --name $$KEY --with-decryption --query 'Parameter.Value' --output text --region $(AWS_REGION) > /tmp/redteam-key.pem && \
-	chmod 600 /tmp/redteam-key.pem && \
-	ssh -o StrictHostKeyChecking=no -i /tmp/redteam-key.pem ubuntu@$$IP
+	ssh -o StrictHostKeyChecking=no -i keys/redteam.pem ubuntu@$$IP
 
 demo-wazuh: ## Demo: Open Wazuh dashboard
 	@echo "$(GREEN)Wazuh SIEM Dashboard$(NC)"
