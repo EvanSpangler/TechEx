@@ -84,7 +84,7 @@ variable "backup_encryption_key" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.30"
+  default     = "1.29"
 }
 
 variable "eks_node_instance_types" {
