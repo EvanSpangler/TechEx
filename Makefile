@@ -121,46 +121,50 @@ ssh-keys: ## Fetch and store SSH keys locally
 	@echo "$(GREEN)Fetching SSH keys from AWS SSM...$(NC)"
 	@mkdir -p keys
 	@# MongoDB key
-	@aws ssm get-parameter --name /wiz-exercise/mongodb/ssh-private-key \
-		--with-decryption --query 'Parameter.Value' --output text \
+	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
+		aws ssm get-parameter --name /wiz-exercise/mongodb/ssh-private-key \
+		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/mongodb.pem 2>/dev/null && \
 		chmod 600 keys/mongodb.pem && \
-		echo "$(GREEN)[OK]$(NC) keys/mongodb.pem" || \
-		echo "$(YELLOW)[SKIP]$(NC) MongoDB key not available"
+		echo -e "$(GREEN)[OK]$(NC) keys/mongodb.pem" || \
+		echo -e "$(YELLOW)[SKIP]$(NC) MongoDB key not available"'
 	@# Wazuh key
-	@aws ssm get-parameter --name /wiz-exercise/wazuh/ssh-private-key \
-		--with-decryption --query 'Parameter.Value' --output text \
+	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
+		aws ssm get-parameter --name /wiz-exercise/wazuh/ssh-private-key \
+		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/wazuh.pem 2>/dev/null && \
 		chmod 600 keys/wazuh.pem && \
-		echo "$(GREEN)[OK]$(NC) keys/wazuh.pem" || \
-		echo "$(YELLOW)[SKIP]$(NC) Wazuh key not available"
+		echo -e "$(GREEN)[OK]$(NC) keys/wazuh.pem" || \
+		echo -e "$(YELLOW)[SKIP]$(NC) Wazuh key not available"'
 	@# Red Team key
-	@aws ssm get-parameter --name /wiz-exercise/redteam/ssh-private-key \
-		--with-decryption --query 'Parameter.Value' --output text \
+	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
+		aws ssm get-parameter --name /wiz-exercise/redteam/ssh-private-key \
+		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/redteam.pem 2>/dev/null && \
 		chmod 600 keys/redteam.pem && \
-		echo "$(GREEN)[OK]$(NC) keys/redteam.pem" || \
-		echo "$(YELLOW)[SKIP]$(NC) Red Team key not available"
+		echo -e "$(GREEN)[OK]$(NC) keys/redteam.pem" || \
+		echo -e "$(YELLOW)[SKIP]$(NC) Red Team key not available"'
 	@echo ""
 	@$(MAKE) ssh-info
 
 ssh-info: ## Show SSH connection commands
+	@echo ""
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo "$(BLUE)                    SSH CONNECTION INFO                         $(NC)"
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 	@echo ""
-	@MONGODB_IP=$$(cd $(TF_DIR) && terraform output -raw mongodb_public_ip 2>/dev/null) && \
-		echo "$(GREEN)MongoDB:$(NC)" && \
-		echo "  ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP" || true
-	@echo ""
-	@WAZUH_IP=$$(cd $(TF_DIR) && terraform output -raw wazuh_public_ip 2>/dev/null) && \
-		echo "$(GREEN)Wazuh:$(NC)" && \
-		echo "  ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP" && \
-		echo "  Dashboard: https://$$WAZUH_IP (admin)" || true
-	@echo ""
-	@REDTEAM_IP=$$(cd $(TF_DIR) && terraform output -raw redteam_public_ip 2>/dev/null) && \
-		echo "$(GREEN)Red Team:$(NC)" && \
-		echo "  ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP" || true
+	@cd $(TF_DIR) && \
+	MONGODB_IP=$$(terraform output -raw mongodb_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
+	WAZUH_IP=$$(terraform output -raw wazuh_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
+	REDTEAM_IP=$$(terraform output -raw redteam_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
+	if [ -n "$$MONGODB_IP" ]; then \
+		echo "$(GREEN)MongoDB:$(NC)    ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP"; \
+		echo "$(GREEN)Wazuh:$(NC)      ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP"; \
+		echo "$(GREEN)Dashboard:$(NC)  https://$$WAZUH_IP (user: admin)"; \
+		echo "$(GREEN)Red Team:$(NC)   ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP"; \
+	else \
+		echo "$(YELLOW)No infrastructure deployed. Run 'make build' first.$(NC)"; \
+	fi
 	@echo ""
 	@echo "$(BLUE)═══════════════════════════════════════════════════════════════$(NC)"
 
