@@ -38,3 +38,9 @@ variable "jwt_secret" {
   sensitive   = true
   default     = "wiz-exercise-jwt-secret-2024"
 }
+
+variable "container_port" {
+  description = "Container port the app listens on"
+  type        = number
+  default     = 80
+}

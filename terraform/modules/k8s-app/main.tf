@@ -114,7 +114,7 @@ resource "kubernetes_deployment" "app" {
           image = var.container_image
 
           port {
-            container_port = 8080
+            container_port = var.container_port
             protocol       = "TCP"
           }
 
@@ -144,7 +144,7 @@ resource "kubernetes_deployment" "app" {
           liveness_probe {
             http_get {
               path = "/"
-              port = 8080
+              port = var.container_port
             }
             initial_delay_seconds = 30
             period_seconds        = 10
@@ -153,7 +153,7 @@ resource "kubernetes_deployment" "app" {
           readiness_probe {
             http_get {
               path = "/"
-              port = 8080
+              port = var.container_port
             }
             initial_delay_seconds = 5
             period_seconds        = 5
@@ -186,7 +186,7 @@ resource "kubernetes_service" "app" {
 
     port {
       port        = 80
-      target_port = 8080
+      target_port = var.container_port
       protocol    = "TCP"
     }
 
