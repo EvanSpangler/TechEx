@@ -9,6 +9,15 @@ echo "Starting Wazuh Manager setup at $(date)"
 apt-get update
 apt-get upgrade -y
 
+# Configure SSH for public key only
+sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sed -i 's/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+sed -i 's/^#*UsePAM.*/UsePAM no/' /etc/ssh/sshd_config
+sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+echo "PasswordAuthentication no" >> /etc/ssh/sshd_config.d/pubkey-only.conf
+systemctl restart sshd
+
 # Install Docker
 apt-get install -y apt-transport-https ca-certificates curl software-properties-common gnupg lsb-release
 
