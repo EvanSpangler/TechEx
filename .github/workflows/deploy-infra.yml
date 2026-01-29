@@ -133,6 +133,37 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
+      - name: Import existing CloudWatch Log Groups
+        if: github.event.inputs.action != 'destroy'
+        run: |
+          # Import existing log groups into Terraform state if they exist in AWS but not in state
+          # This prevents "ResourceAlreadyExistsException" errors
+
+          import_if_exists() {
+            local resource_addr=$1
+            local log_group_name=$2
+
+            # Check if log group exists in AWS
+            if aws logs describe-log-groups --log-group-name-prefix "$log_group_name" \
+               --query "logGroups[?logGroupName=='$log_group_name'].logGroupName" \
+               --output text 2>/dev/null | grep -q "$log_group_name"; then
+
+              # Check if already in Terraform state
+              if ! terraform state show "$resource_addr" >/dev/null 2>&1; then
+                echo "Importing existing log group: $log_group_name -> $resource_addr"
+                terraform import -var-file="environments/demo.tfvars" "$resource_addr" "$log_group_name" || true
+              else
+                echo "Log group already in state: $resource_addr"
+              fi
+            else
+              echo "Log group does not exist in AWS: $log_group_name"
+            fi
+          }
+
+          import_if_exists "module.eks.aws_cloudwatch_log_group.eks" "/aws/eks/wiz-exercise-eks/cluster"
+          import_if_exists "module.vpc.aws_cloudwatch_log_group.flow_logs[0]" "/aws/vpc-flow-logs/wiz-exercise"
+        continue-on-error: true
+
       - name: Terraform Plan
         id: plan
         run: |
