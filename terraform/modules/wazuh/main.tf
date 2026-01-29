@@ -1,6 +1,13 @@
 # Wazuh Module - Security monitoring and SIEM for Wiz exercise
 # Deploys Wazuh Manager using Docker Compose
 
+locals {
+  # Handle null/empty values for AWS service buckets
+  cloudtrail_bucket   = var.cloudtrail_bucket_name != null ? var.cloudtrail_bucket_name : ""
+  config_bucket       = var.config_bucket_name != null ? var.config_bucket_name : ""
+  vpc_flow_logs_group = var.vpc_flow_logs_group != null ? var.vpc_flow_logs_group : ""
+}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -106,6 +113,7 @@ resource "aws_iam_role_policy" "wazuh" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "EC2Describe"
         Effect = "Allow"
         Action = [
           "ec2:DescribeInstances",
@@ -114,12 +122,56 @@ resource "aws_iam_role_policy" "wazuh" {
         Resource = "*"
       },
       {
+        Sid    = "SSMParameters"
         Effect = "Allow"
         Action = [
           "ssm:GetParameter",
           "ssm:GetParameters"
         ]
         Resource = "arn:aws:ssm:*:*:parameter/${var.environment}/*"
+      },
+      {
+        Sid    = "STSIdentity"
+        Effect = "Allow"
+        Action = [
+          "sts:GetCallerIdentity"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "S3BucketAccess"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = compact([
+          local.cloudtrail_bucket != "" ? "arn:aws:s3:::${local.cloudtrail_bucket}" : "",
+          local.cloudtrail_bucket != "" ? "arn:aws:s3:::${local.cloudtrail_bucket}/*" : "",
+          local.config_bucket != "" ? "arn:aws:s3:::${local.config_bucket}" : "",
+          local.config_bucket != "" ? "arn:aws:s3:::${local.config_bucket}/*" : ""
+        ])
+      },
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "GuardDutyAccess"
+        Effect = "Allow"
+        Action = [
+          "guardduty:GetFindings",
+          "guardduty:ListFindings",
+          "guardduty:ListDetectors"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -170,10 +222,14 @@ resource "aws_instance" "wazuh" {
   }
 
   user_data = templatefile("${path.module}/templates/wazuh-userdata.sh.tpl", {
-    environment      = var.environment
-    wazuh_admin_pass = var.wazuh_admin_password
-    wazuh_api_user   = var.wazuh_api_user
-    wazuh_api_pass   = var.wazuh_api_password
+    environment         = var.environment
+    wazuh_admin_pass    = var.wazuh_admin_password
+    wazuh_api_user      = var.wazuh_api_user
+    wazuh_api_pass      = var.wazuh_api_password
+    cloudtrail_bucket   = local.cloudtrail_bucket
+    config_bucket       = local.config_bucket
+    vpc_flow_logs_group = local.vpc_flow_logs_group
+    aws_region          = var.aws_region
   })
 
   tags = merge(var.tags, {

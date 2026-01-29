@@ -319,3 +319,29 @@ echo "Red Team instance setup completed at $(date)"
 echo ""
 echo "Attack scripts available at: /opt/redteam/scripts/"
 echo "Run 'source /opt/redteam/env.sh' to load environment"
+
+%{ if enable_wazuh_agent && wazuh_manager_ip != "" ~}
+# ==========================================
+# Install Wazuh Agent
+# ==========================================
+echo "Installing Wazuh Agent at $(date)"
+
+# Add Wazuh repository
+curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring \
+  --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
+  | tee /etc/apt/sources.list.d/wazuh.list
+
+apt-get update
+
+# Install Wazuh agent with manager IP and agent name
+WAZUH_MANAGER="${wazuh_manager_ip}" WAZUH_AGENT_NAME="${environment}-redteam" apt-get install -y wazuh-agent
+
+# Enable and start Wazuh agent
+systemctl daemon-reload
+systemctl enable wazuh-agent
+systemctl start wazuh-agent
+
+echo "Wazuh Agent installation completed at $(date)"
+%{ endif ~}

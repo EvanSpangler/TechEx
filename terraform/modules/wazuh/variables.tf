@@ -55,3 +55,27 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "cloudtrail_bucket_name" {
+  description = "CloudTrail S3 bucket name"
+  type        = string
+  default     = ""
+}
+
+variable "config_bucket_name" {
+  description = "AWS Config S3 bucket name"
+  type        = string
+  default     = ""
+}
+
+variable "vpc_flow_logs_group" {
+  description = "CloudWatch Log Group for VPC Flow Logs"
+  type        = string
+  default     = ""
+}
+
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+  default     = "us-east-1"
+}

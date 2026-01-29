@@ -111,3 +111,87 @@ echo ""
 echo "Dashboard URL: https://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)"
 echo "Username: admin"
 echo "Password: ${wazuh_admin_pass}"
+
+# ==========================================
+# Configure AWS Service Integrations
+# ==========================================
+echo "Configuring AWS service integrations at $(date)"
+
+# Wait for Wazuh to fully initialize
+sleep 30
+
+# Create AWS wodle configuration for ossec.conf
+cat > /tmp/aws-wodle-config.xml << 'AWSCONFIG'
+  <!-- AWS CloudTrail Integration -->
+%{ if cloudtrail_bucket != "" ~}
+  <wodle name="aws-s3">
+    <disabled>no</disabled>
+    <interval>5m</interval>
+    <run_on_start>yes</run_on_start>
+    <skip_on_error>yes</skip_on_error>
+    <bucket type="cloudtrail">
+      <name>${cloudtrail_bucket}</name>
+      <aws_profile>default</aws_profile>
+      <regions>${aws_region}</regions>
+    </bucket>
+  </wodle>
+%{ endif ~}
+
+%{ if config_bucket != "" ~}
+  <!-- AWS Config Integration -->
+  <wodle name="aws-s3">
+    <disabled>no</disabled>
+    <interval>5m</interval>
+    <run_on_start>yes</run_on_start>
+    <skip_on_error>yes</skip_on_error>
+    <bucket type="config">
+      <name>${config_bucket}</name>
+      <aws_profile>default</aws_profile>
+      <regions>${aws_region}</regions>
+    </bucket>
+  </wodle>
+%{ endif ~}
+
+%{ if vpc_flow_logs_group != "" ~}
+  <!-- VPC Flow Logs Integration via CloudWatch -->
+  <wodle name="aws-cloudwatchlogs">
+    <disabled>no</disabled>
+    <interval>5m</interval>
+    <run_on_start>yes</run_on_start>
+    <log_group>${vpc_flow_logs_group}</log_group>
+    <aws_profile>default</aws_profile>
+    <regions>${aws_region}</regions>
+  </wodle>
+%{ endif ~}
+
+  <!-- GuardDuty Native Integration -->
+  <wodle name="aws-s3">
+    <disabled>no</disabled>
+    <interval>5m</interval>
+    <run_on_start>yes</run_on_start>
+    <skip_on_error>yes</skip_on_error>
+    <service type="guardduty">
+      <aws_profile>default</aws_profile>
+      <regions>${aws_region}</regions>
+    </service>
+  </wodle>
+AWSCONFIG
+
+# Inject AWS wodle configuration into Wazuh Manager ossec.conf
+# We need to do this inside the container
+docker exec wazuh-docker-single-node-wazuh.manager-1 bash -c '
+  # Check if aws-s3 wodle already exists
+  if ! grep -q "wodle name=\"aws-s3\"" /var/ossec/etc/ossec.conf; then
+    # Insert AWS configuration before closing </ossec_config> tag
+    sed -i "/<\/ossec_config>/i\\
+$(cat /dev/stdin | sed "s/$/\\\\n/" | tr -d "\n")
+" /var/ossec/etc/ossec.conf
+  fi
+' < /tmp/aws-wodle-config.xml 2>/dev/null || echo "AWS wodle configuration skipped - container may need manual config"
+
+# Restart Wazuh manager to apply configuration
+docker exec wazuh-docker-single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart 2>/dev/null || echo "Wazuh restart skipped"
+
+rm /tmp/aws-wodle-config.xml
+
+echo "AWS service integrations configured at $(date)"

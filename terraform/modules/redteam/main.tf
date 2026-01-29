@@ -133,11 +133,13 @@ resource "aws_instance" "redteam" {
   }
 
   user_data = templatefile("${path.module}/templates/redteam-userdata.sh.tpl", {
-    environment   = var.environment
-    mongodb_ip    = var.mongodb_private_ip
-    eks_cluster   = var.eks_cluster_name
-    backup_bucket = var.backup_bucket_name
-    aws_region    = var.aws_region
+    environment        = var.environment
+    mongodb_ip         = var.mongodb_private_ip
+    eks_cluster        = var.eks_cluster_name
+    backup_bucket      = var.backup_bucket_name
+    aws_region         = var.aws_region
+    enable_wazuh_agent = var.enable_wazuh_agent
+    wazuh_manager_ip   = var.wazuh_manager_ip
   })
 
   tags = merge(var.tags, {

@@ -76,3 +76,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_wazuh_agent" {
+  description = "Enable Wazuh agent installation"
+  type        = bool
+  default     = false
+}
+
+variable "wazuh_manager_ip" {
+  description = "Wazuh Manager private IP for agent registration"
+  type        = string
+  default     = ""
+}

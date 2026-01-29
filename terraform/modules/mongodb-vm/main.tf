@@ -160,6 +160,8 @@ resource "aws_instance" "mongodb" {
     backup_bucket         = var.backup_bucket_name
     backup_encryption_key = var.backup_encryption_key
     environment           = var.environment
+    enable_wazuh_agent    = var.enable_wazuh_agent
+    wazuh_manager_ip      = var.wazuh_manager_ip
   })
 
   metadata_options {

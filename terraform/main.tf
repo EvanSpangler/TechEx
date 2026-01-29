@@ -48,6 +48,8 @@ provider "kubernetes" {
   }
 }
 
+data "aws_caller_identity" "current" {}
+
 locals {
   tags = {
     Project     = "wiz-exercise"
@@ -98,6 +100,12 @@ module "mongodb" {
   backup_bucket_arn     = module.s3_backup.bucket_arn
   backup_encryption_key = var.backup_encryption_key
   tags                  = local.tags
+
+  # Wazuh Agent integration
+  enable_wazuh_agent = var.enable_wazuh
+  wazuh_manager_ip   = var.enable_wazuh ? module.wazuh[0].private_ip : ""
+
+  depends_on = [module.wazuh]
 }
 
 # ==========================================
@@ -160,6 +168,12 @@ module "wazuh" {
   wazuh_admin_password = var.wazuh_admin_password
   wazuh_api_password   = var.wazuh_api_password
   tags                 = local.tags
+
+  # AWS Service integrations
+  cloudtrail_bucket_name = module.security.cloudtrail_bucket_name
+  config_bucket_name     = try(module.security.config_bucket_name, "")
+  vpc_flow_logs_group    = "/aws/vpc-flow-logs/${var.environment}"
+  aws_region             = var.aws_region
 }
 
 # ==========================================
@@ -179,4 +193,10 @@ module "redteam" {
   backup_bucket_name = module.s3_backup.bucket_name
   aws_region         = var.aws_region
   tags               = local.tags
+
+  # Wazuh Agent integration
+  enable_wazuh_agent = var.enable_wazuh
+  wazuh_manager_ip   = var.enable_wazuh ? module.wazuh[0].private_ip : ""
+
+  depends_on = [module.wazuh]
 }
