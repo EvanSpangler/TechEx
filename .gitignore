@@ -41,6 +41,7 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+!docs/build/
 node_modules/
 site/
 

@@ -90,6 +90,11 @@ nav:
     - Prerequisites: getting-started/prerequisites.md
     - Installation: getting-started/installation.md
     - Configuration: getting-started/configuration.md
+  - Build:
+    - Build Overview: build/overview.md
+    - Container Build: build/container.md
+    - VM Provisioning: build/vm-provisioning.md
+    - Application Build: build/application.md
   - Architecture:
     - Overview: architecture/overview.md
     - Network Topology: architecture/network.md
