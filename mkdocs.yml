@@ -4,6 +4,7 @@ site_author: Evan Spangler
 site_url: https://evanspangler.github.io/TechEx/
 repo_url: https://github.com/EvanSpangler/TechEx
 repo_name: TechEx
+use_directory_urls: true
 
 theme:
   name: material
