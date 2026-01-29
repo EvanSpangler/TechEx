@@ -24,6 +24,7 @@ id_rsa*
 # Secrets
 credentials*
 secrets*
+!docs/security/secrets-exposure.md
 
 # IDE
 .vscode/
