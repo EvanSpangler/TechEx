@@ -1,8 +1,9 @@
 site_name: Wiz Technical Exercise
 site_description: Comprehensive documentation for the Wiz Security Technical Exercise - A deliberately vulnerable AWS infrastructure for security training
 site_author: Evan Spangler
-repo_url: https://github.com/evanspangler/wiz-technical-exercise
-repo_name: wiz-technical-exercise
+site_url: https://evanspangler.github.io/TechEx/
+repo_url: https://github.com/EvanSpangler/TechEx
+repo_name: TechEx
 
 theme:
   name: material
