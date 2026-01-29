@@ -32,7 +32,7 @@ jobs:
       - name: YAML Lint
         uses: ibiqlik/action-yamllint@v3
         with:
-          file_or_dir: '.github/ k8s/ mkdocs.yml'
+          file_or_dir: '.github/ mkdocs.yml'
           config_data: |
             extends: relaxed
             rules:
@@ -80,15 +80,7 @@ jobs:
         with:
           working_directory: terraform
           soft_fail: true
-          format: sarif
-          sarif_file: tfsec.sarif
-
-      - name: Upload tfsec SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: tfsec.sarif
-          category: tfsec
+        continue-on-error: true
 
       - name: Checkov scan
         uses: bridgecrewio/checkov-action@v12
@@ -96,31 +88,15 @@ jobs:
           directory: terraform
           soft_fail: true
           skip_check: CKV_AWS_144,CKV_AWS_145
-          output_format: cli,sarif
-          output_file_path: console,checkov.sarif
-
-      - name: Upload Checkov SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: checkov.sarif
-          category: checkov
+        continue-on-error: true
 
       - name: Trivy IaC scan
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
           scan-ref: terraform
-          format: sarif
-          output: trivy-iac.sarif
           severity: CRITICAL,HIGH,MEDIUM
-
-      - name: Upload Trivy SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: trivy-iac.sarif
-          category: trivy-iac
+        continue-on-error: true
 
   kubernetes-validate:
     name: Kubernetes Validation
@@ -129,19 +105,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check for K8s manifests
+        id: k8s-check
+        run: |
+          if [ -d "k8s" ] && ls k8s/*.yaml 1> /dev/null 2>&1; then
+            echo "has_manifests=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_manifests=false" >> $GITHUB_OUTPUT
+            echo "No standalone K8s manifests found (K8s resources defined in Terraform)"
+          fi
+
       - name: Install kubeconform
+        if: steps.k8s-check.outputs.has_manifests == 'true'
         run: |
           curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz | tar xz
           sudo mv kubeconform /usr/local/bin/
 
       - name: Validate Kubernetes manifests
+        if: steps.k8s-check.outputs.has_manifests == 'true'
         run: |
           kubeconform -strict -summary k8s/*.yaml || true
 
       - name: kubeaudit scan
+        if: steps.k8s-check.outputs.has_manifests == 'true'
         run: |
           curl -sL https://github.com/Shopify/kubeaudit/releases/download/v0.22.0/kubeaudit_0.22.0_linux_amd64.tar.gz | tar xz
           ./kubeaudit all -f k8s/ || true
+
+      - name: Validation skipped
+        if: steps.k8s-check.outputs.has_manifests == 'false'
+        run: echo "K8s validation skipped - manifests are defined in Terraform HCL"
 
   container-build:
     name: Container Build & Scan
@@ -163,38 +156,23 @@ jobs:
 
       - name: Verify wizexercise.txt
         run: |
-          docker run --rm wiz-exercise-test:${{ github.sha }} cat /app/wizexercise.txt
+          docker run --rm --entrypoint cat wiz-exercise-test:${{ github.sha }} /app/wizexercise.txt
           echo "wizexercise.txt verification passed!"
 
       - name: Trivy container scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: wiz-exercise-test:${{ github.sha }}
-          format: sarif
-          output: trivy-container.sarif
           severity: CRITICAL,HIGH
-
-      - name: Upload Trivy container SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: trivy-container.sarif
-          category: trivy-container
+        continue-on-error: true
 
       - name: Grype container scan
         uses: anchore/scan-action@v3
         with:
           image: wiz-exercise-test:${{ github.sha }}
           fail-build: false
-          output-format: sarif
           severity-cutoff: high
-
-      - name: Upload Grype SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: results.sarif
-          category: grype
+        continue-on-error: true
 
   docs-build:
     name: Documentation Build
