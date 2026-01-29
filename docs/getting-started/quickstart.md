@@ -164,7 +164,34 @@ make demo-s3
 make demo-ssh
 ```
 
-### 9. Clean Up
+### 9. Run Tests (Optional)
+
+Validate the deployment and configuration:
+
+```bash
+# Check prerequisites
+make check-prereqs
+
+# Run all tests
+make test
+
+# Or run specific test suites
+make test-terraform    # Validate Terraform
+make test-security     # Run security scans
+make test-docs         # Validate documentation
+```
+
+### 10. View Documentation
+
+Serve documentation locally:
+
+```bash
+make docs
+```
+
+Opens documentation at `http://127.0.0.1:8000`
+
+### 11. Clean Up
 
 When done, destroy the infrastructure:
 

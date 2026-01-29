@@ -131,7 +131,7 @@ output "redteam_ssh_key_ssm" {
 
 output "demo_commands" {
   description = "Useful commands for the demo"
-  value = <<-EOT
+  value       = <<-EOT
 
     ========================================
     WIZ EXERCISE - DEMO COMMANDS

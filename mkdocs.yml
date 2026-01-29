@@ -33,8 +33,6 @@ theme:
 
 plugins:
   - search
-  - minify:
-      minify_html: true
 
 markdown_extensions:
   - abbr
@@ -127,6 +125,7 @@ nav:
     - Terraform Outputs: reference/outputs.md
     - Environment Variables: reference/environment.md
     - GitHub Actions: reference/github-actions.md
+    - Requirements Checklist: reference/requirements-checklist.md
   - Troubleshooting:
     - Common Issues: troubleshooting/common-issues.md
     - AWS Issues: troubleshooting/aws.md

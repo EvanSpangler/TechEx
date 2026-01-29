@@ -456,6 +456,193 @@ make watch
 
 Waits for workflow completion with live updates.
 
+## Documentation
+
+### `make docs`
+
+Alias for `make docs-serve`.
+
+---
+
+### `make docs-serve`
+
+Serve documentation locally with live reload.
+
+```bash
+make docs-serve
+```
+
+Opens documentation at `http://127.0.0.1:8000`
+
+---
+
+### `make docs-build`
+
+Build documentation for production.
+
+```bash
+make docs-build
+```
+
+Outputs to `site/` directory.
+
+---
+
+### `make docs-deploy`
+
+Deploy documentation to GitHub Pages.
+
+```bash
+make docs-deploy
+```
+
+## Testing
+
+### `make test`
+
+Run all test suites (alias for `make test-all`).
+
+```bash
+make test
+```
+
+---
+
+### `make test-all`
+
+Run complete test suite: lint, terraform, security, and docs.
+
+```bash
+make test-all
+```
+
+---
+
+### `make test-lint`
+
+Run linting checks on Terraform, YAML, and Markdown files.
+
+```bash
+make test-lint
+```
+
+**Checks:**
+
+- Terraform formatting (`terraform fmt -check`)
+- YAML lint (requires `yamllint`)
+- Markdown lint (requires `markdownlint`)
+
+---
+
+### `make test-terraform`
+
+Validate Terraform configuration.
+
+```bash
+make test-terraform
+```
+
+**Actions:**
+
+1. Runs `terraform init -backend=false`
+2. Runs `terraform validate`
+
+---
+
+### `make test-security`
+
+Run security scans on infrastructure code.
+
+```bash
+make test-security
+```
+
+**Tools used:**
+
+- tfsec - Terraform security scanner
+- checkov - Policy-as-code scanner
+- trivy - Configuration scanner
+
+!!! note "Expected Findings"
+    Security scans will report findings - this is expected as the infrastructure is intentionally vulnerable for training.
+
+---
+
+### `make test-docs`
+
+Validate documentation build.
+
+```bash
+make test-docs
+```
+
+**Checks:**
+
+- MkDocs strict build
+- Link validation (requires `linkchecker`)
+
+---
+
+### `make test-k8s`
+
+Validate Kubernetes manifests.
+
+```bash
+make test-k8s
+```
+
+**Tools used:**
+
+- kubeval
+- kubeconform
+
+---
+
+### `make test-container`
+
+Build and scan container image locally.
+
+```bash
+make test-container
+```
+
+**Actions:**
+
+1. Build container image
+2. Verify wizexercise.txt exists
+3. Run Trivy vulnerability scan
+
+---
+
+### `make check-prereqs`
+
+Check all required and optional prerequisites.
+
+```bash
+make check-prereqs
+```
+
+**Output:**
+
+```
+Checking prerequisites...
+
+Required:
+  [OK] aws-cli
+  [OK] terraform
+  [OK] kubectl
+  [OK] gh (GitHub CLI)
+  [OK] docker
+  [OK] mkdocs
+
+Optional (for testing):
+  [OK] tfsec
+  [OK] checkov
+  [OK] trivy
+  [MISSING] yamllint
+  [MISSING] markdownlint
+```
+
 ## Environment Variables
 
 ### Configurable Variables

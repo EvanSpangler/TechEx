@@ -61,7 +61,7 @@ resource "aws_s3_bucket_policy" "backup_public" {
         Sid       = "PublicReadGetObject"
         Effect    = "Allow"
         Principal = "*"
-        Action    = [
+        Action = [
           "s3:GetObject",
           "s3:ListBucket"
         ]

@@ -103,10 +103,11 @@ graph TB
 
 ### Automation
 
-- **Makefile** - Single command deployment, demos, and teardown
-- **GitHub Actions** - CI/CD pipeline for infrastructure management
+- **Makefile** - Single command deployment, demos, testing, and teardown
+- **GitHub Actions** - CI/CD pipelines for infrastructure and container management
 - **Terraform** - Infrastructure as Code with modular design
 - **Attack Scripts** - Pre-built exploitation tools on Red Team instance
+- **Automated Testing** - Security scanning, validation, and documentation checks
 
 ### Monitoring & Detection
 
@@ -125,6 +126,7 @@ graph TB
 | [Security](security/overview.md) | Vulnerability details and exploitation |
 | [Demos](demos/overview.md) | Attack scenarios and detection exercises |
 | [Reference](reference/makefile.md) | Commands, variables, and API reference |
+| [Requirements](reference/requirements-checklist.md) | Wiz exercise compliance checklist |
 | [Troubleshooting](troubleshooting/common-issues.md) | Common issues and solutions |
 
 ## Project Structure

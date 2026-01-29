@@ -200,9 +200,9 @@ resource "kubernetes_ingress_v1" "app" {
     name      = var.app_name
     namespace = kubernetes_namespace.app.metadata[0].name
     annotations = {
-      "kubernetes.io/ingress.class"               = "alb"
-      "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"     = "ip"
+      "kubernetes.io/ingress.class"                = "alb"
+      "alb.ingress.kubernetes.io/scheme"           = "internet-facing"
+      "alb.ingress.kubernetes.io/target-type"      = "ip"
       "alb.ingress.kubernetes.io/healthcheck-path" = "/"
     }
   }

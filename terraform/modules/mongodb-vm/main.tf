@@ -84,9 +84,9 @@ resource "aws_iam_role_policy" "mongodb_overpermissive" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "OverlyPermissiveEC2"
-        Effect = "Allow"
-        Action = "ec2:*"
+        Sid      = "OverlyPermissiveEC2"
+        Effect   = "Allow"
+        Action   = "ec2:*"
         Resource = "*"
       },
       {
@@ -152,19 +152,19 @@ resource "aws_instance" "mongodb" {
   }
 
   user_data = templatefile("${path.module}/templates/mongodb-userdata.sh.tpl", {
-    mongodb_admin_user     = var.mongodb_admin_user
-    mongodb_admin_pass     = var.mongodb_admin_pass
-    mongodb_app_user       = var.mongodb_app_user
-    mongodb_app_pass       = var.mongodb_app_pass
-    mongodb_database       = var.mongodb_database
-    backup_bucket          = var.backup_bucket_name
-    backup_encryption_key  = var.backup_encryption_key
-    environment            = var.environment
+    mongodb_admin_user    = var.mongodb_admin_user
+    mongodb_admin_pass    = var.mongodb_admin_pass
+    mongodb_app_user      = var.mongodb_app_user
+    mongodb_app_pass      = var.mongodb_app_pass
+    mongodb_database      = var.mongodb_database
+    backup_bucket         = var.backup_bucket_name
+    backup_encryption_key = var.backup_encryption_key
+    environment           = var.environment
   })
 
   metadata_options {
     http_endpoint               = "enabled"
-    http_tokens                 = "optional"  # VULNERABILITY: IMDSv1 enabled
+    http_tokens                 = "optional" # VULNERABILITY: IMDSv1 enabled
     http_put_response_hop_limit = 2
   }
 

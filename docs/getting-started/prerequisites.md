@@ -141,6 +141,106 @@ JSON processor for parsing AWS CLI output.
     sudo apt install jq
     ```
 
+### Docker
+
+Required for building and testing container images.
+
+=== "macOS"
+
+    ```bash
+    brew install --cask docker
+    # Start Docker Desktop
+    ```
+
+=== "Linux"
+
+    ```bash
+    curl -fsSL https://get.docker.com | sh
+    sudo usermod -aG docker $USER
+    # Log out and back in
+    ```
+
+Verify installation:
+
+```bash
+docker --version
+docker run hello-world
+```
+
+### MkDocs (For Documentation)
+
+Python-based documentation generator.
+
+```bash
+pip install mkdocs-material mkdocs-minify-plugin
+```
+
+Verify installation:
+
+```bash
+mkdocs --version
+```
+
+## Optional Testing Tools
+
+These tools are used by `make test-*` commands but are not required for deployment.
+
+### tfsec
+
+Terraform security scanner.
+
+=== "macOS"
+
+    ```bash
+    brew install tfsec
+    ```
+
+=== "Linux"
+
+    ```bash
+    curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+    ```
+
+### checkov
+
+Policy-as-code scanner for infrastructure.
+
+```bash
+pip install checkov
+```
+
+### Trivy
+
+Comprehensive vulnerability scanner.
+
+=== "macOS"
+
+    ```bash
+    brew install trivy
+    ```
+
+=== "Linux"
+
+    ```bash
+    curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+    ```
+
+### yamllint
+
+YAML file linter.
+
+```bash
+pip install yamllint
+```
+
+### markdownlint
+
+Markdown file linter.
+
+```bash
+npm install -g markdownlint-cli
+```
+
 ## AWS Account Requirements
 
 ### Dedicated Account
@@ -267,48 +367,53 @@ If behind a corporate firewall, ensure these ports are open:
 | 443 | HTTPS | registry.terraform.io | Terraform |
 | 22 | SSH | Deployed EC2 IPs | Instance access |
 
-## Verification Script
+## Verification
 
-Run this script to verify all prerequisites:
+### Using Makefile (Recommended)
+
+The easiest way to check prerequisites:
+
+```bash
+make check-prereqs
+```
+
+**Output:**
+
+```
+Checking prerequisites...
+
+Required:
+  [OK] aws-cli
+  [OK] terraform
+  [OK] kubectl
+  [OK] gh (GitHub CLI)
+  [OK] docker
+  [OK] mkdocs
+
+Optional (for testing):
+  [OK] tfsec
+  [OK] checkov
+  [OK] trivy
+  [MISSING] yamllint
+  [MISSING] markdownlint
+```
+
+### Manual Script
+
+Alternatively, run this script:
 
 ```bash
 #!/bin/bash
 echo "Checking prerequisites..."
 
-# AWS CLI
-if command -v aws &> /dev/null; then
-    echo "✓ AWS CLI: $(aws --version 2>&1 | head -1)"
-else
-    echo "✗ AWS CLI not found"
-fi
-
-# Terraform
-if command -v terraform &> /dev/null; then
-    echo "✓ Terraform: $(terraform --version | head -1)"
-else
-    echo "✗ Terraform not found"
-fi
-
-# kubectl
-if command -v kubectl &> /dev/null; then
-    echo "✓ kubectl: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
-else
-    echo "✗ kubectl not found"
-fi
-
-# GitHub CLI
-if command -v gh &> /dev/null; then
-    echo "✓ GitHub CLI: $(gh --version | head -1)"
-else
-    echo "✗ GitHub CLI not found"
-fi
-
-# Make
-if command -v make &> /dev/null; then
-    echo "✓ Make: $(make --version | head -1)"
-else
-    echo "✗ Make not found"
-fi
+# Required tools
+for cmd in aws terraform kubectl gh docker mkdocs make; do
+    if command -v $cmd &> /dev/null; then
+        echo "✓ $cmd installed"
+    else
+        echo "✗ $cmd not found"
+    fi
+done
 
 # AWS credentials
 if aws sts get-caller-identity &> /dev/null; then
@@ -324,13 +429,17 @@ if gh auth status &> /dev/null; then
 else
     echo "✗ GitHub CLI not authenticated"
 fi
-```
 
-Save as `check-prereqs.sh` and run:
-
-```bash
-chmod +x check-prereqs.sh
-./check-prereqs.sh
+# Optional tools
+echo ""
+echo "Optional testing tools:"
+for cmd in tfsec checkov trivy yamllint markdownlint; do
+    if command -v $cmd &> /dev/null; then
+        echo "✓ $cmd installed"
+    else
+        echo "- $cmd not installed (optional)"
+    fi
+done
 ```
 
 ## Next Steps

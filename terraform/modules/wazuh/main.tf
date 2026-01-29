@@ -170,10 +170,10 @@ resource "aws_instance" "wazuh" {
   }
 
   user_data = templatefile("${path.module}/templates/wazuh-userdata.sh.tpl", {
-    environment        = var.environment
-    wazuh_admin_pass   = var.wazuh_admin_password
-    wazuh_api_user     = var.wazuh_api_user
-    wazuh_api_pass     = var.wazuh_api_password
+    environment      = var.environment
+    wazuh_admin_pass = var.wazuh_admin_password
+    wazuh_api_user   = var.wazuh_api_user
+    wazuh_api_pass   = var.wazuh_api_password
   })
 
   tags = merge(var.tags, {

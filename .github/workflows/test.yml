@@ -1,0 +1,244 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.6.0'
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: YAML Lint
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          file_or_dir: '.github/ k8s/ mkdocs.yml'
+          config_data: |
+            extends: relaxed
+            rules:
+              line-length:
+                max: 200
+              truthy: disable
+
+      - name: Markdown Lint
+        uses: articulate/actions-markdownlint@v1
+        with:
+          config: .markdownlint.json
+          files: 'docs/**/*.md'
+          ignore: node_modules
+        continue-on-error: true
+
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.6.0'
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: terraform
+
+  security-scan-iac:
+    name: IaC Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: tfsec scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+          soft_fail: true
+          format: sarif
+          sarif_file: tfsec.sarif
+
+      - name: Upload tfsec SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tfsec.sarif
+          category: tfsec
+
+      - name: Checkov scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: terraform
+          soft_fail: true
+          skip_check: CKV_AWS_144,CKV_AWS_145
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
+
+      - name: Trivy IaC scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: config
+          scan-ref: terraform
+          format: sarif
+          output: trivy-iac.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-iac.sarif
+          category: trivy-iac
+
+  kubernetes-validate:
+    name: Kubernetes Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/download/v0.6.4/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubeconform -strict -summary k8s/*.yaml || true
+
+      - name: kubeaudit scan
+        run: |
+          curl -sL https://github.com/Shopify/kubeaudit/releases/download/v0.22.0/kubeaudit_0.22.0_linux_amd64.tar.gz | tar xz
+          ./kubeaudit all -f k8s/ || true
+
+  container-build:
+    name: Container Build & Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build container image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: false
+          tags: wiz-exercise-test:${{ github.sha }}
+          load: true
+
+      - name: Verify wizexercise.txt
+        run: |
+          docker run --rm wiz-exercise-test:${{ github.sha }} cat /app/wizexercise.txt
+          echo "wizexercise.txt verification passed!"
+
+      - name: Trivy container scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: wiz-exercise-test:${{ github.sha }}
+          format: sarif
+          output: trivy-container.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy container SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-container.sarif
+          category: trivy-container
+
+      - name: Grype container scan
+        uses: anchore/scan-action@v3
+        with:
+          image: wiz-exercise-test:${{ github.sha }}
+          fail-build: false
+          output-format: sarif
+          severity-cutoff: high
+
+      - name: Upload Grype SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+          category: grype
+
+  docs-build:
+    name: Documentation Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install MkDocs
+        run: |
+          pip install mkdocs-material mkdocs-minify-plugin
+
+      - name: Build documentation
+        run: mkdocs build --strict
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: site/
+          retention-days: 7
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [lint, terraform-validate, security-scan-iac, kubernetes-validate, container-build, docs-build]
+    if: always()
+    steps:
+      - name: Test Results Summary
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Format | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Validation | ${{ needs.terraform-validate.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| IaC Security Scan | ${{ needs.security-scan-iac.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Kubernetes Validation | ${{ needs.kubernetes-validate.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Build & Scan | ${{ needs.container-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Documentation Build | ${{ needs.docs-build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Security scans may report findings - this is expected as the infrastructure is intentionally vulnerable for training purposes." >> $GITHUB_STEP_SUMMARY

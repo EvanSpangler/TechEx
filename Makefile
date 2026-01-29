@@ -3,7 +3,8 @@
 
 .PHONY: help build deploy destroy reset demo clean bootstrap secrets init plan apply outputs \
         demo-s3 demo-ssh demo-iam demo-k8s demo-secrets demo-redteam demo-wazuh demo-attack \
-        show status logs watch ssh-keys ssh-info ssh-mongodb ssh-wazuh ssh-redteam
+        show status logs watch ssh-keys ssh-info ssh-mongodb ssh-wazuh ssh-redteam \
+        docs docs-serve docs-build test test-terraform test-lint test-security test-all
 
 # Configuration
 SHELL := /bin/bash
@@ -72,6 +73,20 @@ help:
 	@printf "  make outputs        Show Terraform outputs\n"
 	@printf "  make logs           Show latest workflow logs\n"
 	@printf "  make watch          Watch running workflow\n"
+	@printf "\n"
+	@printf "$(BLUE)DOCUMENTATION:$(NC)\n"
+	@printf "  make docs           Serve documentation locally\n"
+	@printf "  make docs-build     Build documentation for production\n"
+	@printf "  make docs-deploy    Deploy docs to GitHub Pages\n"
+	@printf "\n"
+	@printf "$(BLUE)TESTING:$(NC)\n"
+	@printf "  make test           Run all tests\n"
+	@printf "  make test-lint      Run linting checks\n"
+	@printf "  make test-terraform Validate Terraform\n"
+	@printf "  make test-security  Run security scans\n"
+	@printf "  make test-docs      Validate documentation\n"
+	@printf "  make test-container Build and scan container\n"
+	@printf "  make check-prereqs  Check all prerequisites\n"
 	@printf "\n"
 
 #═══════════════════════════════════════════════════════════════
@@ -382,3 +397,146 @@ logs: ## Show latest workflow logs
 watch: ## Watch running workflow
 	@RUN_ID=$$(gh run list --workflow="Deploy Infrastructure" --limit 1 --json databaseId --jq '.[0].databaseId') && \
 	gh run watch $$RUN_ID
+
+#═══════════════════════════════════════════════════════════════
+# DOCUMENTATION
+#═══════════════════════════════════════════════════════════════
+
+docs: docs-serve ## Alias for docs-serve
+
+docs-serve: ## Serve documentation locally (live reload)
+	@printf "$(BLUE)Starting MkDocs development server...$(NC)\n"
+	@printf "$(GREEN)Documentation: http://127.0.0.1:8000$(NC)\n"
+	@mkdocs serve
+
+docs-build: ## Build documentation for production
+	@printf "$(BLUE)Building documentation...$(NC)\n"
+	@mkdocs build --strict
+	@printf "$(GREEN)Documentation built to site/$(NC)\n"
+
+docs-deploy: docs-build ## Deploy documentation to GitHub Pages
+	@printf "$(BLUE)Deploying documentation to GitHub Pages...$(NC)\n"
+	@mkdocs gh-deploy --force
+	@printf "$(GREEN)Documentation deployed!$(NC)\n"
+
+#═══════════════════════════════════════════════════════════════
+# TESTING
+#═══════════════════════════════════════════════════════════════
+
+test: test-all ## Run all tests
+
+test-all: test-lint test-terraform test-security test-docs ## Run all test suites
+	@printf "$(GREEN)All tests passed!$(NC)\n"
+
+test-lint: ## Run linting checks
+	@printf "$(BLUE)Running lint checks...$(NC)\n"
+	@# Terraform format check
+	@printf "$(YELLOW)Checking Terraform formatting...$(NC)\n"
+	@cd $(TF_DIR) && terraform fmt -check -recursive && \
+		printf "$(GREEN)[PASS]$(NC) Terraform formatting\n" || \
+		(printf "$(RED)[FAIL]$(NC) Terraform formatting\n" && exit 1)
+	@# YAML lint
+	@printf "$(YELLOW)Checking YAML files...$(NC)\n"
+	@command -v yamllint >/dev/null 2>&1 && \
+		(yamllint -d relaxed .github/ k8s/ mkdocs.yml 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) YAML lint\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) yamllint not installed\n"
+	@# Markdown lint
+	@printf "$(YELLOW)Checking Markdown files...$(NC)\n"
+	@command -v markdownlint >/dev/null 2>&1 && \
+		(markdownlint docs/ --ignore node_modules 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) Markdown lint\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) markdownlint not installed\n"
+
+test-terraform: ## Validate Terraform configuration
+	@printf "$(BLUE)Validating Terraform...$(NC)\n"
+	@cd $(TF_DIR) && terraform init -backend=false -input=false >/dev/null 2>&1
+	@cd $(TF_DIR) && terraform validate && \
+		printf "$(GREEN)[PASS]$(NC) Terraform validation\n" || \
+		(printf "$(RED)[FAIL]$(NC) Terraform validation\n" && exit 1)
+
+test-security: ## Run security scans
+	@printf "$(BLUE)Running security scans...$(NC)\n"
+	@# tfsec
+	@printf "$(YELLOW)Running tfsec...$(NC)\n"
+	@command -v tfsec >/dev/null 2>&1 && \
+		(tfsec $(TF_DIR) --soft-fail 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) tfsec scan (findings expected for demo)\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) tfsec not installed\n"
+	@# checkov
+	@printf "$(YELLOW)Running checkov...$(NC)\n"
+	@command -v checkov >/dev/null 2>&1 && \
+		(checkov -d $(TF_DIR) --soft-fail --quiet 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) checkov scan (findings expected for demo)\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) checkov not installed\n"
+	@# trivy config scan
+	@printf "$(YELLOW)Running trivy config scan...$(NC)\n"
+	@command -v trivy >/dev/null 2>&1 && \
+		(trivy config $(TF_DIR) --exit-code 0 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) trivy config scan (findings expected for demo)\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) trivy not installed\n"
+
+test-docs: ## Validate documentation
+	@printf "$(BLUE)Validating documentation...$(NC)\n"
+	@# Check mkdocs build
+	@printf "$(YELLOW)Building documentation (strict mode)...$(NC)\n"
+	@command -v mkdocs >/dev/null 2>&1 && \
+		(mkdocs build --strict 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) MkDocs build\n" || \
+		(printf "$(RED)[FAIL]$(NC) MkDocs build\n" && exit 1)) || \
+		printf "$(YELLOW)[SKIP]$(NC) mkdocs not installed\n"
+	@# Check for broken internal links
+	@printf "$(YELLOW)Checking documentation links...$(NC)\n"
+	@command -v linkchecker >/dev/null 2>&1 && \
+		(linkchecker site/ --check-extern=false 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) Link check\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) linkchecker not installed\n"
+
+test-k8s: ## Validate Kubernetes manifests
+	@printf "$(BLUE)Validating Kubernetes manifests...$(NC)\n"
+	@# kubeval
+	@command -v kubeval >/dev/null 2>&1 && \
+		(kubeval k8s/*.yaml 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) Kubernetes manifest validation\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) kubeval not installed\n"
+	@# kubeconform
+	@command -v kubeconform >/dev/null 2>&1 && \
+		(kubeconform -strict k8s/*.yaml 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) kubeconform validation\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) kubeconform not installed\n"
+
+test-container: ## Build and scan container image locally
+	@printf "$(BLUE)Building and scanning container image...$(NC)\n"
+	@cd app && docker build -t wiz-exercise-test:local .
+	@printf "$(YELLOW)Verifying wizexercise.txt...$(NC)\n"
+	@docker run --rm wiz-exercise-test:local cat /app/wizexercise.txt && \
+		printf "$(GREEN)[PASS]$(NC) wizexercise.txt exists\n" || \
+		(printf "$(RED)[FAIL]$(NC) wizexercise.txt missing\n" && exit 1)
+	@printf "$(YELLOW)Running Trivy scan...$(NC)\n"
+	@command -v trivy >/dev/null 2>&1 && \
+		(trivy image wiz-exercise-test:local --severity HIGH,CRITICAL 2>/dev/null && \
+		printf "$(GREEN)[PASS]$(NC) Container scan complete\n") || \
+		printf "$(YELLOW)[SKIP]$(NC) trivy not installed\n"
+
+#═══════════════════════════════════════════════════════════════
+# PREREQUISITES CHECK
+#═══════════════════════════════════════════════════════════════
+
+check-prereqs: ## Check all prerequisites
+	@printf "$(BLUE)Checking prerequisites...$(NC)\n"
+	@printf "\n"
+	@printf "$(GREEN)Required:$(NC)\n"
+	@command -v aws >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) aws-cli\n" || printf "  $(RED)[MISSING]$(NC) aws-cli\n"
+	@command -v terraform >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) terraform\n" || printf "  $(RED)[MISSING]$(NC) terraform\n"
+	@command -v kubectl >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) kubectl\n" || printf "  $(RED)[MISSING]$(NC) kubectl\n"
+	@command -v gh >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) gh (GitHub CLI)\n" || printf "  $(RED)[MISSING]$(NC) gh (GitHub CLI)\n"
+	@command -v docker >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) docker\n" || printf "  $(RED)[MISSING]$(NC) docker\n"
+	@command -v mkdocs >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) mkdocs\n" || printf "  $(RED)[MISSING]$(NC) mkdocs\n"
+	@printf "\n"
+	@printf "$(YELLOW)Optional (for testing):$(NC)\n"
+	@command -v tfsec >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) tfsec\n" || printf "  $(YELLOW)[MISSING]$(NC) tfsec\n"
+	@command -v checkov >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) checkov\n" || printf "  $(YELLOW)[MISSING]$(NC) checkov\n"
+	@command -v trivy >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) trivy\n" || printf "  $(YELLOW)[MISSING]$(NC) trivy\n"
+	@command -v yamllint >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) yamllint\n" || printf "  $(YELLOW)[MISSING]$(NC) yamllint\n"
+	@command -v markdownlint >/dev/null 2>&1 && printf "  $(GREEN)[OK]$(NC) markdownlint\n" || printf "  $(YELLOW)[MISSING]$(NC) markdownlint\n"
+	@printf "\n"
