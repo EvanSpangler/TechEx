@@ -35,6 +35,7 @@ help:
 	@printf "\n"
 	@printf "$(GREEN)BUILD & DEPLOY:$(NC)\n"
 	@printf "  make build          Deploy via GitHub Actions (recommended)\n"
+	@printf "  make build-app      Build and Deploy Application via GitHub Actions\n"
 	@printf "  make deploy-local   Deploy locally with Terraform\n"
 	@printf "  make bootstrap      Create S3 state backend\n"
 	@printf "  make secrets        Setup GitHub secrets\n"
@@ -99,6 +100,13 @@ build: ## Deploy via GitHub Actions
 	@sleep 5
 	@$(MAKE) watch
 	@$(MAKE) ssh-keys
+
+build-app: ## Build and Deploy Application via GitHub Actions
+	@printf "$(GREEN)Triggering Application Build & Deploy...$(NC)\n"
+	@gh workflow run "Build and Deploy Application"
+	@sleep 5
+	@RUN_ID=$$(gh run list --workflow="Build and Deploy Application" --limit 1 --json databaseId --jq '.[0].databaseId') && \
+	gh run watch $$RUN_ID
 
 deploy: build
 
