@@ -54,7 +54,9 @@ jobs:
             mkdocs-awesome-pages-plugin
 
       - name: Build documentation
-        run: mkdocs build --strict
+        run: |
+          mkdocs build --strict
+          touch site/.nojekyll
 
       - name: Setup Pages
         if: github.event_name != 'pull_request'
