@@ -9,7 +9,7 @@ These runbooks are designed for operators managing the Wiz Technical Exercise in
 ## Table of Contents
 
 - [Deployment Operations](#deployment-operations)
-- [Monitoring & Alerting](#monitoring--alerting)
+- [Monitoring and Alerting](#monitoring-and-alerting)
 - [Incident Response](#incident-response)
 - [Maintenance Tasks](#maintenance-tasks)
 - [Disaster Recovery](#disaster-recovery)
@@ -118,7 +118,7 @@ make force-destroy
 
 ---
 
-## Monitoring & Alerting
+## Monitoring and Alerting
 
 ### Check System Health
 

@@ -218,4 +218,4 @@ Watch for:
 
 - [Architecture Overview](../architecture/overview.md)
 - [Quick Start](../getting-started/quickstart.md)
-- [Troubleshooting - High Costs](../troubleshooting/common-issues.md#high-costs)
+- [Troubleshooting](../troubleshooting/common-issues.md)
