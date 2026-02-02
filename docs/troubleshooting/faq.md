@@ -24,15 +24,14 @@ This is a **security training exercise** that deploys intentionally vulnerable i
 
 Estimated costs when running 24/7:
 
-| Resource | Monthly Cost |
-|----------|-------------|
-| EKS Cluster | ~$73 |
-| EC2 Instances (4) | ~$90 |
-| NAT Gateway | ~$33 |
-| ALB | ~$16 |
-| **Total** | ~$200-250 |
+| Metric | Estimate |
+|--------|----------|
+| Daily | ~$8-10 |
+| Monthly | ~$250-300 |
 
 **Tip:** Use `make destroy` when not actively using.
+
+See [Cost Reference](../reference/costs.md) for detailed breakdown and optimization strategies.
 
 ### How long does deployment take?
 

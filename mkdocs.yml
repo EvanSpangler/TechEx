@@ -126,12 +126,29 @@ nav:
     - Kubernetes Exploitation: demos/k8s-exploit.md
     - Privilege Escalation: demos/privesc.md
     - Detection & Response: demos/detection.md
+  - Development:
+    - Overview: development/index.md
+    - Local Setup: development/local-setup.md
+    - Application Architecture: development/application-architecture.md
+  - Testing:
+    - Overview: testing/index.md
+    - Security Scanning: testing/security-scanning.md
+    - Validation: testing/validation.md
+    - Application Tests: testing/application-tests.md
+    - CI/CD Integration: testing/ci-integration.md
+  - Operations:
+    - Overview: operations/index.md
+    - Runbooks: operations/runbooks.md
+    - Disaster Recovery: operations/disaster-recovery.md
   - Reference:
+    - API Reference: reference/api.md
     - Makefile Commands: reference/makefile.md
     - Terraform Modules: reference/terraform.md
     - Terraform Outputs: reference/outputs.md
     - Environment Variables: reference/environment.md
     - GitHub Actions: reference/github-actions.md
+    - Cost Reference: reference/costs.md
+    - Glossary: reference/glossary.md
     - Requirements Checklist: reference/requirements-checklist.md
   - Troubleshooting:
     - Common Issues: troubleshooting/common-issues.md

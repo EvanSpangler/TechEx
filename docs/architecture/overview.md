@@ -277,33 +277,23 @@ graph LR
 
 ## Cost Architecture
 
-### Resource Costs (Estimated Monthly)
+**Estimated Total**: ~$250-300/month (24/7 operation) or ~$8-10/day
 
-| Resource | Quantity | Unit Cost | Monthly |
-|----------|----------|-----------|---------|
-| EKS Control Plane | 1 | $0.10/hr | $73 |
-| t3.medium (nodes) | 2 | $0.0416/hr | $60 |
-| t3.small (VMs) | 2 | $0.0208/hr | $30 |
-| t3.medium (Wazuh) | 1 | $0.0416/hr | $30 |
-| NAT Gateway | 1 | $0.045/hr | $33 |
-| ALB | 1 | $0.0225/hr | $16 |
-| S3 | ~1GB | $0.023/GB | $1 |
-| Data Transfer | Variable | $0.09/GB | ~$10 |
+| Category | Monthly Cost |
+|----------|-------------|
+| Compute (EKS + EC2) | ~$157 |
+| Networking (NAT + ALB) | ~$79 |
+| Storage (EBS + S3) | ~$5 |
+| Security (GuardDuty, etc.) | ~$9 |
 
-**Estimated Total**: $250-300/month (24/7 operation)
+> **Recommendation**: Always run `make destroy` when not in use.
 
-### Cost Optimization
-
-```bash
-# Destroy when not in use
-make destroy
-
-# Use spot instances (modify tfvars)
-eks_node_capacity_type = "SPOT"
-```
+See [Cost Reference](../reference/costs.md) for detailed breakdown and optimization strategies.
 
 ## Related Documentation
 
 - [Network Topology](network.md) - Detailed network architecture
 - [Data Flow](data-flow.md) - How data moves through the system
 - [Security Model](security-model.md) - Security architecture (and its flaws)
+- [Cost Reference](../reference/costs.md) - Complete cost breakdown
+- [Glossary](../reference/glossary.md) - Terminology definitions

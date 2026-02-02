@@ -121,13 +121,16 @@ graph TB
 | Section | Description |
 |---------|-------------|
 | [Getting Started](getting-started/quickstart.md) | Setup, prerequisites, and first deployment |
+| [Build](build/overview.md) | Container and infrastructure build processes |
 | [Architecture](architecture/overview.md) | System design, network topology, data flows |
 | [Infrastructure](infrastructure/eks.md) | Detailed component documentation |
 | [Security](security/overview.md) | Vulnerability details and exploitation |
 | [Demos](demos/overview.md) | Attack scenarios and detection exercises |
-| [Reference](reference/makefile.md) | Commands, variables, and API reference |
-| [Requirements](reference/requirements-checklist.md) | Wiz exercise compliance checklist |
-| [Troubleshooting](troubleshooting/common-issues.md) | Common issues and solutions |
+| [Development](development/index.md) | Local setup and application architecture |
+| [Testing](testing/index.md) | Security scanning, validation, CI/CD tests |
+| [Operations](operations/index.md) | Runbooks and disaster recovery |
+| [Reference](reference/makefile.md) | Commands, API, costs, and glossary |
+| [Troubleshooting](troubleshooting/common-issues.md) | Common issues, FAQ, and solutions |
 
 ## Project Structure
 
@@ -160,16 +163,14 @@ wiz-technical-exercise/
 ## Cost Estimate
 
 !!! info "AWS Costs"
-    Running this infrastructure will incur AWS charges. Estimated costs:
+    Running this infrastructure will incur AWS charges:
 
-    - **EKS Cluster**: ~$0.10/hour ($72/month)
-    - **EC2 Instances**: ~$0.05/hour ($36/month for 3 instances)
-    - **NAT Gateway**: ~$0.045/hour ($32/month)
-    - **Data Transfer**: Variable
-
-    **Total**: ~$140-200/month if running 24/7
+    - **Daily**: ~$8-10/day
+    - **Monthly**: ~$250-300/month (24/7 operation)
 
     Use `make destroy` when not in use to minimize costs.
+
+    See [Cost Reference](reference/costs.md) for detailed breakdown and optimization strategies.
 
 ## Support
 
