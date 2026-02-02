@@ -57,7 +57,7 @@ jobs:
 
       - name: Verify wizexercise.txt exists
         run: |
-          docker run --rm ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest cat /app/wizexercise.txt
+          docker run --rm --entrypoint cat ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest /app/wizexercise.txt
           echo "wizexercise.txt verification passed!"
 
       - name: Trivy vulnerability scan
