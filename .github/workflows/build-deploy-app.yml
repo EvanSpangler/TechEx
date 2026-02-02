@@ -21,6 +21,9 @@ jobs:
   build-scan:
     name: Build and Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     outputs:
       image_tag: ${{ steps.meta.outputs.tags }}
     steps:
@@ -71,10 +74,12 @@ jobs:
       - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: trivy-results.sarif
 
       - name: Grype vulnerability scan
+        id: grype
         uses: anchore/scan-action@v3
         with:
           image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
@@ -83,9 +88,10 @@ jobs:
 
       - name: Upload Grype SARIF
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && steps.grype.outputs.sarif != ''
+        continue-on-error: true
         with:
-          sarif_file: results.sarif
+          sarif_file: ${{ steps.grype.outputs.sarif }}
 
       - name: Push to ECR
         if: github.ref == 'refs/heads/main'
