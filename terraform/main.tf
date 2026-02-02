@@ -59,6 +59,16 @@ locals {
 }
 
 # ==========================================
+# ECR Repository
+# ==========================================
+module "ecr" {
+  source = "./modules/ecr"
+
+  repository_name = "wiz-exercise-todo"
+  tags            = local.tags
+}
+
+# ==========================================
 # VPC Module
 # ==========================================
 module "vpc" {
