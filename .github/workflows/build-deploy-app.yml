@@ -128,10 +128,13 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          # Update deployment image
+          # Update deployment image (use latest tag)
           kubectl set image deployment/tasky \
-            tasky=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
+            tasky=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest \
             -n ${{ env.K8S_NAMESPACE }}
+
+          # Force rollout restart to pick up latest image
+          kubectl rollout restart deployment/tasky -n ${{ env.K8S_NAMESPACE }}
 
           # Wait for rollout
           kubectl rollout status deployment/tasky -n ${{ env.K8S_NAMESPACE }} --timeout=300s
