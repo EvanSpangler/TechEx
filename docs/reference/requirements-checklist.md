@@ -32,7 +32,7 @@ This document tracks compliance with all mandatory and optional requirements fro
 | Accessible via web browser | ✅ Met | ALB ingress exposes application on port 80/443 |
 | Multi-container Kubernetes pods | ✅ Met | Deployment with multiple replicas on EKS |
 | Contains wizexercise.txt file | ✅ Met | Created in Dockerfile with user's name |
-| File contains user's full name | ✅ Met | "Evan Spangler - Wiz Technical Exercise 2024" |
+| File contains user's full name | ✅ Met | "Evan Spangler - Wiz Technical Exercise 2026" |
 
 **Location:** `app/Dockerfile`, `terraform/modules/k8s-app/`
 

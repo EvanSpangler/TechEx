@@ -60,7 +60,7 @@ COPY --from=build /go/src/tasky/tasky .
 COPY --from=build /go/src/tasky/assets ./assets
 
 # Create wizexercise.txt as required by the exercise
-RUN echo "Evan Spangler - Wiz Technical Exercise 2024" > /app/wizexercise.txt
+RUN echo "Evan Spangler - Wiz Technical Exercise 2026" > /app/wizexercise.txt
 
 # Set ownership
 RUN chown -R appuser:appgroup /app
@@ -164,7 +164,7 @@ docker run -p 8080:8080 \
 
 ```bash
 docker run --rm tasky cat /app/wizexercise.txt
-# Output: Evan Spangler - Wiz Technical Exercise 2024
+# Output: Evan Spangler - Wiz Technical Exercise 2026
 ```
 
 ### Verify Non-Root User
