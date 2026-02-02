@@ -15,7 +15,7 @@ mongodb_app_user      = "appuser"
 mongodb_database      = "tasky"
 
 # EKS
-kubernetes_version      = "1.30"
+kubernetes_version      = "1.32"
 eks_node_instance_types = ["t3.medium"]
 eks_node_desired_size   = 2
 eks_node_min_size       = 1
@@ -27,7 +27,7 @@ app_name      = "tasky"
 app_replicas  = 2
 
 # NOTE: Set container_image after building and pushing to ECR
-# container_image = "<account>.dkr.ecr.us-east-1.amazonaws.com/wiz-exercise-todo:latest"
+container_image = "public.ecr.aws/nginx/nginx:latest"
 
 # Wazuh
 enable_wazuh        = true
@@ -38,10 +38,10 @@ enable_redteam        = true
 redteam_instance_type = "t3.medium"
 
 # IMPORTANT: Set these via environment variables or terraform.tfvars.local:
-# mongodb_admin_pass    = "..."
-# mongodb_app_pass      = "..."
-# backup_encryption_key = "..."
-# wazuh_admin_password  = "..."
-# wazuh_api_password    = "..."
-# redteam_allowed_cidrs = ["YOUR_IP/32"]
-# wazuh_allowed_cidrs   = ["YOUR_IP/32"]
+mongodb_admin_pass    = "Sup3rS3cr3t!"
+mongodb_app_pass      = "AppS3cr3t!"
+backup_encryption_key = "BackupsAreImportant"
+wazuh_admin_password  = "WazuhAdmin1!"
+wazuh_api_password    = "WazuhAPI1!"
+redteam_allowed_cidrs = ["0.0.0.0/0"]
+wazuh_allowed_cidrs   = ["0.0.0.0/0"]

@@ -4,7 +4,8 @@
 .PHONY: help build deploy destroy reset demo clean bootstrap secrets init plan apply outputs \
         demo-s3 demo-ssh demo-iam demo-k8s demo-secrets demo-redteam demo-wazuh demo-attack \
         show status logs watch ssh-keys ssh-info ssh-mongodb ssh-wazuh ssh-redteam \
-        docs docs-serve docs-build test test-terraform test-lint test-security test-all
+        docs docs-serve docs-build test test-terraform test-lint test-security test-all \
+        cleanup-logs
 
 # Configuration
 SHELL := /bin/bash
@@ -56,6 +57,7 @@ help:
 	@printf "  make reset          Full reset (destroy + clean)\n"
 	@printf "  make clean          Remove local Terraform files\n"
 	@printf "  make force-destroy  Emergency force cleanup\n"
+	@printf "  make cleanup-logs   Delete orphaned CloudWatch log groups\n"
 	@printf "\n"
 	@printf "$(YELLOW)DEMOS:$(NC)\n"
 	@printf "  make demo           Interactive demo menu\n"
@@ -112,6 +114,8 @@ deploy: build
 
 deploy-local: init ## Deploy locally with Terraform
 	@printf "$(GREEN)Deploying locally...$(NC)\n"
+	@chmod +x scripts/import_logs.sh
+	@./scripts/import_logs.sh $(AWS_REGION) $(TF_DIR)
 	@cd $(TF_DIR) && terraform apply -var-file="environments/demo.tfvars" -auto-approve
 	@$(MAKE) ssh-keys
 
@@ -150,7 +154,7 @@ ssh-keys: ## Fetch and store SSH keys locally
 		--region $(AWS_REGION) > keys/mongodb.pem 2>/dev/null && \
 		chmod 600 keys/mongodb.pem && \
 		printf "$(GREEN)[OK]$(NC) keys/mongodb.pem\n" || \
-		printf "$(YELLOW)[SKIP]$(NC) MongoDB key not available\n"'
+		(rm -f keys/mongodb.pem && printf "$(YELLOW)[SKIP]$(NC) MongoDB key not available\n")'
 	@# Wazuh key
 	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
 		aws ssm get-parameter --name /wiz-exercise/wazuh/ssh-private-key \
@@ -158,7 +162,7 @@ ssh-keys: ## Fetch and store SSH keys locally
 		--region $(AWS_REGION) > keys/wazuh.pem 2>/dev/null && \
 		chmod 600 keys/wazuh.pem && \
 		printf "$(GREEN)[OK]$(NC) keys/wazuh.pem\n" || \
-		printf "$(YELLOW)[SKIP]$(NC) Wazuh key not available\n"'
+		(rm -f keys/wazuh.pem && printf "$(YELLOW)[SKIP]$(NC) Wazuh key not available\n")'
 	@# Red Team key
 	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
 		aws ssm get-parameter --name /wiz-exercise/redteam/ssh-private-key \
@@ -166,7 +170,15 @@ ssh-keys: ## Fetch and store SSH keys locally
 		--region $(AWS_REGION) > keys/redteam.pem 2>/dev/null && \
 		chmod 600 keys/redteam.pem && \
 		printf "$(GREEN)[OK]$(NC) keys/redteam.pem\n" || \
-		printf "$(YELLOW)[SKIP]$(NC) Red Team key not available\n"'
+		(rm -f keys/redteam.pem && printf "$(YELLOW)[SKIP]$(NC) Red Team key not available\n")'
+	@# Wazuh admin password
+	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
+		aws ssm get-parameter --name /wiz-exercise/wazuh/admin-password \
+		--with-decryption --query "Parameter.Value" --output text \
+		--region $(AWS_REGION) > keys/wazuh-password.txt 2>/dev/null && \
+		chmod 600 keys/wazuh-password.txt && \
+		printf "$(GREEN)[OK]$(NC) keys/wazuh-password.txt\n" || \
+		(rm -f keys/wazuh-password.txt && printf "$(YELLOW)[SKIP]$(NC) Wazuh password not available\n")'
 	@printf "\n"
 	@$(MAKE) ssh-info
 
@@ -180,10 +192,13 @@ ssh-info: ## Show SSH connection commands
 	MONGODB_IP=$$(terraform output -raw mongodb_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	WAZUH_IP=$$(terraform output -raw wazuh_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	REDTEAM_IP=$$(terraform output -raw redteam_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
+	WAZUH_PASS=$$(cat ../keys/wazuh-password.txt 2>/dev/null || echo "run 'make ssh-keys' to fetch") && \
 	if [ -n "$$MONGODB_IP" ]; then \
 		printf "$(GREEN)MongoDB:$(NC)    ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP\n"; \
 		printf "$(GREEN)Wazuh:$(NC)      ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP\n"; \
-		printf "$(GREEN)Dashboard:$(NC)  https://$$WAZUH_IP (user: admin)\n"; \
+		printf "$(GREEN)Dashboard:$(NC)  https://$$WAZUH_IP\n"; \
+		printf "$(GREEN)  User:$(NC)     admin\n"; \
+		printf "$(GREEN)  Password:$(NC) $$WAZUH_PASS\n"; \
 		printf "$(GREEN)Red Team:$(NC)   ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP\n"; \
 	else \
 		printf "$(YELLOW)No infrastructure deployed. Run 'make build' first.$(NC)\n"; \
@@ -216,14 +231,25 @@ destroy: ## Destroy via GitHub Actions
 	@gh workflow run "Deploy Infrastructure" --field action=destroy
 	@sleep 5
 	@$(MAKE) watch
+	@$(MAKE) cleanup-logs
 
 destroy-local: ## Destroy locally with Terraform
 	@printf "$(RED)Destroying infrastructure locally...$(NC)\n"
 	@read -p "Type DESTROY to confirm: " confirm && [ "$$confirm" = "DESTROY" ] || exit 1
 	@cd $(TF_DIR) && terraform destroy -var-file="environments/demo.tfvars" -auto-approve
+	@$(MAKE) cleanup-logs
 
 reset: destroy clean ## Full reset (destroy + clean)
 	@printf "$(GREEN)Reset complete!$(NC)\n"
+
+cleanup-logs: ## Delete orphaned CloudWatch log groups
+	@printf "$(YELLOW)Cleaning up CloudWatch log groups...$(NC)\n"
+	@aws logs delete-log-group --log-group-name "/aws/eks/wiz-exercise-eks/cluster" --region $(AWS_REGION) 2>/dev/null && \
+		printf "$(GREEN)[OK]$(NC) Deleted /aws/eks/wiz-exercise-eks/cluster\n" || \
+		printf "$(YELLOW)[SKIP]$(NC) /aws/eks/wiz-exercise-eks/cluster (not found)\n"
+	@aws logs delete-log-group --log-group-name "/aws/vpc-flow-logs/wiz-exercise" --region $(AWS_REGION) 2>/dev/null && \
+		printf "$(GREEN)[OK]$(NC) Deleted /aws/vpc-flow-logs/wiz-exercise\n" || \
+		printf "$(YELLOW)[SKIP]$(NC) /aws/vpc-flow-logs/wiz-exercise (not found)\n"
 
 clean: ## Remove local Terraform files and keys
 	@printf "$(YELLOW)Cleaning local files...$(NC)\n"
@@ -248,6 +274,8 @@ force-destroy: ## Emergency force cleanup
 		aws s3 rm s3://$$b --recursive --region $(AWS_REGION) 2>/dev/null || true; \
 		aws s3 rb s3://$$b --force --region $(AWS_REGION) 2>/dev/null || true; \
 	done
+	@# Delete CloudWatch log groups
+	@$(MAKE) cleanup-logs
 	@printf "$(YELLOW)Force cleanup initiated. Resources may take time to delete.$(NC)\n"
 
 #═══════════════════════════════════════════════════════════════
@@ -285,6 +313,7 @@ demo-ssh: ## Demo: SSH to MongoDB
 	@IP=$$(cd $(TF_DIR) && terraform output -raw mongodb_public_ip 2>/dev/null) && \
 	printf "MongoDB IP: $$IP\n" && \
 	printf "$(YELLOW)Connecting...$(NC)\n" && \
+	printf "ssh -o StrictHostKeyChecking=no -i keys/mongodb.pem ubuntu@$$IP\n" && \
 	ssh -o StrictHostKeyChecking=no -i keys/mongodb.pem ubuntu@$$IP
 
 demo-iam: ## Demo: Overprivileged IAM role
@@ -307,6 +336,7 @@ demo-k8s: ## Demo: K8s cluster-admin ServiceAccount
 	@aws eks update-kubeconfig --name wiz-exercise-eks --region $(AWS_REGION) 2>/dev/null
 	@printf "\n"
 	@printf "$(YELLOW)ClusterRoleBinding:$(NC)\n"
+	@printf "kubectl get clusterrolebinding tasky-cluster-admin -o yaml | head -25\n"
 	@kubectl get clusterrolebinding tasky-cluster-admin -o yaml | head -25
 	@printf "\n"
 	@printf "$(YELLOW)Any pod in tasky namespace can:$(NC)\n"
@@ -319,12 +349,15 @@ demo-secrets: ## Demo: K8s secrets exposure
 	@aws eks update-kubeconfig --name wiz-exercise-eks --region $(AWS_REGION) 2>/dev/null
 	@printf "\n"
 	@printf "$(YELLOW)Secrets in tasky namespace:$(NC)\n"
+	@printf "kubectl get secrets -n tasky\n"
 	@kubectl get secrets -n tasky
 	@printf "\n"
 	@printf "$(YELLOW)Decoded MongoDB URI:$(NC)\n"
+	@printf "kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.MONGODB_URI}' | base64 -d\n"
 	@kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.MONGODB_URI}' | base64 -d && printf "\n"
 	@printf "\n"
 	@printf "$(YELLOW)Decoded JWT Secret:$(NC)\n"
+	@printf "kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.SECRET_KEY}' | base64 -d\n"
 	@kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.SECRET_KEY}' | base64 -d && printf "\n"
 
 demo-redteam: ## Demo: SSH to red team instance
@@ -333,6 +366,7 @@ demo-redteam: ## Demo: SSH to red team instance
 	@IP=$$(cd $(TF_DIR) && terraform output -raw redteam_public_ip 2>/dev/null) && \
 	printf "Red Team IP: $$IP\n" && \
 	printf "$(YELLOW)Connecting...$(NC)\n" && \
+	printf "ssh -o StrictHostKeyChecking=no -i keys/redteam.pem ubuntu@$$IP\n" && \
 	ssh -o StrictHostKeyChecking=no -i keys/redteam.pem ubuntu@$$IP
 
 demo-wazuh: ## Demo: Open Wazuh dashboard
@@ -341,6 +375,7 @@ demo-wazuh: ## Demo: Open Wazuh dashboard
 	printf "URL: https://$$IP\n" && \
 	printf "Username: admin\n" && \
 	printf "\n" && \
+	printf "xdg-open \"https://$$IP\"\n" && \
 	xdg-open "https://$$IP" 2>/dev/null || open "https://$$IP" 2>/dev/null || printf "Open https://$$IP in browser\n"
 
 demo-attack: ## Demo: Full attack chain walkthrough
@@ -369,6 +404,30 @@ demo-attack: ## Demo: Full attack chain walkthrough
 	@printf "  - Deploy cryptominers/backdoors\n"
 	@printf "  - Pivot to other AWS resources\n"
 	@printf "\n"
+	@read -p "Press [Enter] to start the attack commands..."
+	
+	@# Force key refresh to ensure we have latest keys
+	@$(MAKE) ssh-keys
+
+	@$(MAKE) demo-s3 || true
+	@printf "\n"
+	@read -p "Press [Enter] to continue to next step..."
+
+	@$(MAKE) demo-ssh || true
+	@printf "\n"
+	@read -p "Press [Enter] to continue to next step..."
+
+	@$(MAKE) demo-iam || true
+	@printf "\n"
+	@read -p "Press [Enter] to continue to next step..."
+
+	@$(MAKE) demo-k8s || true
+	@printf "\n"
+	@read -p "Press [Enter] to continue to next step..."
+
+	@$(MAKE) demo-secrets || true
+	@printf "\n"
+	@printf "$(RED)Attack chain complete!$(NC)\n"
 
 #═══════════════════════════════════════════════════════════════
 # STATUS & INFO

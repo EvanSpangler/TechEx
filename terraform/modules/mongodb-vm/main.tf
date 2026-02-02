@@ -173,4 +173,8 @@ resource "aws_instance" "mongodb" {
   tags = merge(var.tags, {
     Name = "${var.environment}-mongodb"
   })
+
+  lifecycle {
+    replace_triggered_by = [aws_key_pair.mongodb]
+  }
 }

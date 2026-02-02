@@ -235,6 +235,10 @@ resource "aws_instance" "wazuh" {
   tags = merge(var.tags, {
     Name = "${var.environment}-wazuh-manager"
   })
+
+  lifecycle {
+    replace_triggered_by = [aws_key_pair.wazuh]
+  }
 }
 
 # Store Wazuh credentials in SSM

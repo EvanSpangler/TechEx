@@ -145,4 +145,8 @@ resource "aws_instance" "redteam" {
   tags = merge(var.tags, {
     Name = "${var.environment}-redteam"
   })
+
+  lifecycle {
+    replace_triggered_by = [aws_key_pair.redteam]
+  }
 }
