@@ -26,7 +26,7 @@ echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-4.4.gp
 
 # Install MongoDB 4.4
 apt-get update
-apt-get install -y mongodb-org=4.4.29 mongodb-org-server=4.4.29 mongodb-org-shell=4.4.29 mongodb-org-mongos=4.4.29 mongodb-org-tools=4.4.29
+apt-get install -y mongodb-org=4.4.29 mongodb-org-server=4.4.29 mongodb-org-shell=4.4.29 mongodb-org-mongos=4.4.29 mongodb-org-tools=4.4.29 
 
 # Pin MongoDB version to prevent auto-updates
 echo "mongodb-org hold" | dpkg --set-selections
@@ -34,6 +34,9 @@ echo "mongodb-org-server hold" | dpkg --set-selections
 echo "mongodb-org-shell hold" | dpkg --set-selections
 echo "mongodb-org-mongos hold" | dpkg --set-selections
 echo "mongodb-org-tools hold" | dpkg --set-selections
+
+# Install MongoDB Shell
+apt-get install -y mongosh
 
 # Configure MongoDB to listen on all interfaces
 cat > /etc/mongod.conf << 'EOF'
@@ -154,22 +157,52 @@ echo "MongoDB version: $(mongod --version | head -1)"
 # ==========================================
 echo "Installing Wazuh Agent at $(date)"
 
-# Add Wazuh repository
-curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring \
-  --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+# Wait for Wazuh Manager to be ready (port 1514 for agent registration)
+# The Manager takes 5-10 minutes to fully initialize after EC2 launch
+WAZUH_MANAGER_IP="${wazuh_manager_ip}"
+MAX_RETRIES=60
+RETRY_INTERVAL=30
+WAZUH_READY=false
 
-echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
-  | tee /etc/apt/sources.list.d/wazuh.list
+echo "Waiting for Wazuh Manager at $WAZUH_MANAGER_IP to be ready..."
 
-apt-get update
+# Install netcat for port checking if not present
+apt-get install -y netcat-openbsd || apt-get install -y netcat
 
-# Install Wazuh agent with manager IP and agent name
-WAZUH_MANAGER="${wazuh_manager_ip}" WAZUH_AGENT_NAME="${environment}-mongodb" apt-get install -y wazuh-agent
+for i in $(seq 1 $MAX_RETRIES); do
+  # Check if Wazuh Manager registration port (1514) is listening
+  if nc -z -w5 "$WAZUH_MANAGER_IP" 1514 2>/dev/null; then
+    echo "Wazuh Manager is ready (attempt $i/$MAX_RETRIES)"
+    WAZUH_READY=true
+    break
+  fi
+  echo "Wazuh Manager not ready yet, waiting... (attempt $i/$MAX_RETRIES)"
+  sleep $RETRY_INTERVAL
+done
 
-# Enable and start Wazuh agent
-systemctl daemon-reload
-systemctl enable wazuh-agent
-systemctl start wazuh-agent
+if [ "$WAZUH_READY" = "true" ]; then
+  # Add Wazuh repository
+  curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring \
+    --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
 
-echo "Wazuh Agent installation completed at $(date)"
+  echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
+    | tee /etc/apt/sources.list.d/wazuh.list
+
+  apt-get update
+
+  # Install Wazuh agent with manager IP and unique agent name
+  # Use instance ID suffix to avoid duplicate name conflicts on instance rebuild
+  INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null | tail -c 8 || date +%s | tail -c 8)
+  WAZUH_MANAGER="$WAZUH_MANAGER_IP" WAZUH_AGENT_NAME="${environment}-mongodb-$INSTANCE_ID" apt-get install -y wazuh-agent
+
+  # Enable and start Wazuh agent
+  systemctl daemon-reload
+  systemctl enable wazuh-agent
+  systemctl start wazuh-agent
+
+  echo "Wazuh Agent installation completed at $(date)"
+else
+  echo "ERROR: Wazuh Manager did not become ready after $((MAX_RETRIES * RETRY_INTERVAL)) seconds"
+  echo "Wazuh Agent installation skipped. Manual installation required."
+fi
 %{ endif ~}

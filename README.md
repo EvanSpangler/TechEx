@@ -73,12 +73,16 @@ docker push <account>.dkr.ecr.us-east-1.amazonaws.com/wiz-exercise-todo:latest
 
 ## Demo Attack Chain
 
-1. **Reconnaissance**: Enumerate public S3 bucket
+**[👉 View the Condensed Demo Cheat Sheet](docs/demo-guide.md)**
+
+The automated attack chain (`./attack-chain.sh`) demonstrates:
+
+1. **Reconnaissance**: Enumerate public S3 bucket & valid targets (SSM/EC2)
 2. **Data Exfiltration**: Download database backups
-3. **K8s Exploitation**: Extract secrets using cluster-admin
-4. **Database Access**: Connect with stolen credentials
-5. **Privilege Escalation**: IMDS credential theft on MongoDB VM
-6. **Lateral Movement**: Use stolen IAM credentials
+3. **Lateral Movement**: Pivot to MongoDB VM using stolen SSH key
+4. **Privilege Escalation**: IMDS credential theft (Critical Vulnerability)
+
+For a manual deep-dive into each step, see [docs/demos/attack-chain.md](docs/demos/attack-chain.md).
 
 ## Detection Points
 

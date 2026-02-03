@@ -183,7 +183,10 @@ module "wazuh" {
   cloudtrail_bucket_name = module.security.cloudtrail_bucket_name
   config_bucket_name     = try(module.security.config_bucket_name, "")
   vpc_flow_logs_group    = "/aws/vpc-flow-logs/${var.environment}"
+  eks_log_group          = "/aws/eks/${var.environment}-eks/cluster"
   aws_region             = var.aws_region
+
+  depends_on = [module.eks]
 }
 
 # ==========================================
@@ -209,4 +212,19 @@ module "redteam" {
   wazuh_manager_ip   = var.enable_wazuh ? module.wazuh[0].private_ip : ""
 
   depends_on = [module.wazuh]
+}
+
+# ==========================================
+# K8s Wazuh Agent Module (Optional)
+# ==========================================
+module "k8s_wazuh" {
+  source = "./modules/k8s-wazuh"
+  count  = var.enable_wazuh ? 1 : 0
+
+  environment         = var.environment
+  wazuh_manager_ip    = module.wazuh[0].private_ip
+  wazuh_cluster_name  = module.eks.cluster_name
+  wazuh_agent_version = "4.14.2"
+
+  depends_on = [module.eks, module.wazuh]
 }

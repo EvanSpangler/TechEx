@@ -6,6 +6,7 @@ locals {
   cloudtrail_bucket   = var.cloudtrail_bucket_name != null ? var.cloudtrail_bucket_name : ""
   config_bucket       = var.config_bucket_name != null ? var.config_bucket_name : ""
   vpc_flow_logs_group = var.vpc_flow_logs_group != null ? var.vpc_flow_logs_group : ""
+  eks_log_group       = var.eks_log_group != null ? var.eks_log_group : ""
 }
 
 data "aws_ami" "ubuntu" {
@@ -172,6 +173,16 @@ resource "aws_iam_role_policy" "wazuh" {
           "guardduty:ListDetectors"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "InspectorAccess"
+        Effect = "Allow"
+        Action = [
+          "inspector2:ListFindings",
+          "inspector2:GetFindingsReportStatus",
+          "inspector2:BatchGetFindings"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -229,6 +240,7 @@ resource "aws_instance" "wazuh" {
     cloudtrail_bucket   = local.cloudtrail_bucket
     config_bucket       = local.config_bucket
     vpc_flow_logs_group = local.vpc_flow_logs_group
+    eks_log_group       = local.eks_log_group
     aws_region          = var.aws_region
   })
 

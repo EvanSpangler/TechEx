@@ -77,3 +77,10 @@ variable "aws_region" {
   type        = string
   default     = "us-east-1"
 }
+
+variable "eks_log_group" {
+  description = "CloudWatch Log Group for EKS audit logs"
+  type        = string
+  default     = ""
+}
+

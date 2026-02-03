@@ -120,6 +120,7 @@ nav:
     - Outdated MongoDB: security/mongodb-outdated.md
     - IMDS Exploitation: security/imds.md
   - Demos:
+    - Demo Cheat Sheet: demo-guide.md
     - Demo Overview: demos/overview.md
     - Attack Chain: demos/attack-chain.md
     - S3 Exfiltration: demos/s3-exfil.md

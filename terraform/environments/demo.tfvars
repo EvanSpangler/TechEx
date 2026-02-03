@@ -42,6 +42,6 @@ mongodb_admin_pass    = "Sup3rS3cr3t!"
 mongodb_app_pass      = "AppS3cr3t!"
 backup_encryption_key = "BackupsAreImportant"
 wazuh_admin_password  = "SecretPassword"
-wazuh_api_password    = "SecretApiPassword"
+# wazuh_api_password uses Wazuh default (MyS3cr37P450r.*-) - meets complexity requirements
 redteam_allowed_cidrs = ["0.0.0.0/0"]
 wazuh_allowed_cidrs   = ["0.0.0.0/0"]

@@ -35,8 +35,8 @@ systemctl start docker
 mkdir -p /opt/wazuh
 cd /opt/wazuh
 
-# Clone Wazuh Docker repository
-git clone https://github.com/wazuh/wazuh-docker.git -b v4.7.0
+# Clone Wazuh Docker repository (latest stable)
+git clone https://github.com/wazuh/wazuh-docker.git -b v4.14.2
 
 cd wazuh-docker/single-node
 
@@ -52,8 +52,8 @@ ESCAPED_API_PASS=$(printf '%s\n' "${wazuh_api_pass}" | sed 's/[&/\]/\\&/g')
 sed -i "s/INDEXER_PASSWORD=SecretPassword/INDEXER_PASSWORD=$ESCAPED_ADMIN_PASS/g" docker-compose.yml
 
 # Replace API_PASSWORD - the default has special chars: MyS3cr37P450r.*-
-# The . and * need to be escaped in the regex pattern
-sed -i "s/API_PASSWORD=MyS3cr37P450r\\.\\*-/API_PASSWORD=$ESCAPED_API_PASS/g" docker-compose.yml
+# Use a more flexible pattern that matches the entire value after API_PASSWORD=
+sed -i "s/API_PASSWORD=.*/API_PASSWORD=$ESCAPED_API_PASS/g" docker-compose.yml
 
 # Verify the replacements worked
 echo "=== Verifying password configuration ==="
@@ -181,57 +181,51 @@ echo "Configuring AWS service integrations at $(date)"
 sleep 30
 
 # Create AWS wodle configuration for ossec.conf
+# Note: Wazuh 4.x uses aws-s3 wodle for all AWS integrations
+# CloudWatch Logs is a service type, not a separate wodle
+# Instance metadata is used for credentials (no aws_profile needed)
 cat > /tmp/aws-wodle-config.xml << 'AWSCONFIG'
-  <!-- AWS CloudTrail Integration -->
-%{ if cloudtrail_bucket != "" ~}
+  <!-- AWS Integrations - Single wodle with multiple sources -->
   <wodle name="aws-s3">
     <disabled>no</disabled>
     <interval>5m</interval>
     <run_on_start>yes</run_on_start>
     <skip_on_error>yes</skip_on_error>
+
+%{ if cloudtrail_bucket != "" ~}
+    <!-- CloudTrail Logs from S3 -->
     <bucket type="cloudtrail">
       <name>${cloudtrail_bucket}</name>
-      <aws_profile>default</aws_profile>
       <regions>${aws_region}</regions>
     </bucket>
-  </wodle>
 %{ endif ~}
 
 %{ if config_bucket != "" ~}
-  <!-- AWS Config Integration -->
-  <wodle name="aws-s3">
-    <disabled>no</disabled>
-    <interval>5m</interval>
-    <run_on_start>yes</run_on_start>
-    <skip_on_error>yes</skip_on_error>
+    <!-- AWS Config Logs from S3 -->
     <bucket type="config">
       <name>${config_bucket}</name>
-      <aws_profile>default</aws_profile>
       <regions>${aws_region}</regions>
     </bucket>
-  </wodle>
 %{ endif ~}
 
 %{ if vpc_flow_logs_group != "" ~}
-  <!-- VPC Flow Logs Integration via CloudWatch -->
-  <wodle name="aws-cloudwatchlogs">
-    <disabled>no</disabled>
-    <interval>5m</interval>
-    <run_on_start>yes</run_on_start>
-    <log_group>${vpc_flow_logs_group}</log_group>
-    <aws_profile>default</aws_profile>
-    <regions>${aws_region}</regions>
-  </wodle>
+    <!-- VPC Flow Logs via CloudWatch -->
+    <service type="cloudwatchlogs">
+      <aws_log_groups>${vpc_flow_logs_group}</aws_log_groups>
+      <regions>${aws_region}</regions>
+    </service>
 %{ endif ~}
 
-  <!-- GuardDuty Native Integration -->
-  <wodle name="aws-s3">
-    <disabled>no</disabled>
-    <interval>5m</interval>
-    <run_on_start>yes</run_on_start>
-    <skip_on_error>yes</skip_on_error>
-    <service type="guardduty">
-      <aws_profile>default</aws_profile>
+%{ if eks_log_group != "" ~}
+    <!-- EKS Audit Logs via CloudWatch -->
+    <service type="cloudwatchlogs">
+      <aws_log_groups>${eks_log_group}</aws_log_groups>
+      <regions>${aws_region}</regions>
+    </service>
+%{ endif ~}
+
+    <!-- AWS Inspector findings -->
+    <service type="inspector">
       <regions>${aws_region}</regions>
     </service>
   </wodle>
@@ -239,19 +233,190 @@ AWSCONFIG
 
 # Inject AWS wodle configuration into Wazuh Manager ossec.conf
 # We need to do this inside the container
-docker exec single-node-wazuh.manager-1 bash -c '
-  # Check if aws-s3 wodle already exists
-  if ! grep -q "wodle name=\"aws-s3\"" /var/ossec/etc/ossec.conf; then
-    # Insert AWS configuration before closing </ossec_config> tag
-    sed -i "/<\/ossec_config>/i\\
-$(cat /dev/stdin | sed "s/$/\\\\n/" | tr -d "\n")
-" /var/ossec/etc/ossec.conf
-  fi
-' < /tmp/aws-wodle-config.xml 2>/dev/null || echo "AWS wodle configuration skipped - container may need manual config"
+MANAGER_CONTAINER="single-node-wazuh.manager-1"
 
-# Restart Wazuh manager to apply configuration
-docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart 2>/dev/null || echo "Wazuh restart skipped"
+# Wait for the manager container to be fully ready
+for i in {1..60}; do
+  if docker exec $MANAGER_CONTAINER test -f /var/ossec/etc/ossec.conf 2>/dev/null; then
+    echo "Manager ossec.conf found"
+    break
+  fi
+  echo "Waiting for manager to be ready... ($i/60)"
+  sleep 5
+done
+
+# Copy the config file into the container first
+docker cp /tmp/aws-wodle-config.xml $MANAGER_CONTAINER:/tmp/aws-wodle.xml 2>/dev/null || echo "Could not copy config to container"
+
+# Check if aws-s3 wodle already exists, if not, inject it
+docker exec $MANAGER_CONTAINER bash -c '
+  if ! grep -q "wodle name=\"aws-s3\"" /var/ossec/etc/ossec.conf; then
+    # Create backup
+    cp /var/ossec/etc/ossec.conf /var/ossec/etc/ossec.conf.bak
+    # Insert the AWS config before the closing </ossec_config> tag
+    head -n -1 /var/ossec/etc/ossec.conf > /tmp/ossec_new.conf
+    cat /tmp/aws-wodle.xml >> /tmp/ossec_new.conf
+    echo "</ossec_config>" >> /tmp/ossec_new.conf
+    mv /tmp/ossec_new.conf /var/ossec/etc/ossec.conf
+    rm -f /tmp/aws-wodle.xml
+    echo "AWS wodle configuration injected"
+  else
+    echo "AWS wodle already configured"
+  fi
+' 2>/dev/null || echo "AWS wodle configuration skipped - container may need manual config"
+
+# Note: Do NOT restart the manager here - let it finish initialization naturally
+# The configuration will be picked up on the next restart or can be applied manually
+echo "AWS wodle configuration complete - restart manager manually if needed: docker exec $MANAGER_CONTAINER /var/ossec/bin/wazuh-control restart"
 
 rm /tmp/aws-wodle-config.xml
 
 echo "AWS service integrations configured at $(date)"
+
+# ==========================================
+# Configure Custom Detection Rules for Attack Chain Demo
+# ==========================================
+echo "Configuring custom attack chain detection rules at $(date)"
+
+# Create custom rules XML for detecting WIZ exercise attack patterns
+cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
+<!-- WIZ Exercise - Attack Chain Detection Rules -->
+<!-- Custom rules for detecting demo attack patterns with HIGH/CRITICAL severity -->
+
+<group name="attack_chain,">
+
+  <!-- Phase 1: SSM Parameter Enumeration (Recon) -->
+  <rule id="100001" level="10">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">DescribeParameters</field>
+    <description>HIGH: AWS SSM Parameter Enumeration Detected (WIZ Attack Chain Phase 1 - Recon)</description>
+    <group>aws,recon,attack_chain,pci_dss_10.6.1,</group>
+  </rule>
+
+  <!-- Phase 1: EC2 Instance Enumeration (Recon) -->
+  <rule id="100002" level="8">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">DescribeInstances</field>
+    <description>MEDIUM: AWS EC2 Instance Enumeration (WIZ Attack Chain Phase 1 - Recon)</description>
+    <group>aws,recon,attack_chain,</group>
+  </rule>
+
+  <!-- Phase 2: Unauthenticated S3 Bucket Listing -->
+  <rule id="100003" level="12">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">ListBucket</field>
+    <field name="aws.userIdentity.type">AWSAccount</field>
+    <description>HIGH: Unauthenticated S3 Bucket Listing (WIZ Attack Chain Phase 2 - Exfil)</description>
+    <group>aws,exfiltration,attack_chain,pci_dss_10.6.1,</group>
+  </rule>
+
+  <!-- Phase 2: Unauthenticated S3 Object Download -->
+  <rule id="100004" level="14">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">GetObject</field>
+    <field name="aws.userIdentity.type">AWSAccount</field>
+    <description>CRITICAL: Unauthenticated S3 Object Download (WIZ Attack Chain Phase 2 - Data Exfiltration)</description>
+    <group>aws,exfiltration,attack_chain,pci_dss_10.6.1,gdpr_IV_35.7.d,</group>
+  </rule>
+
+  <!-- Phase 3: SSH Private Key Retrieval from SSM -->
+  <rule id="100005" level="15">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">GetParameter</field>
+    <regex>ssh-private-key</regex>
+    <description>CRITICAL: SSH Private Key Retrieved from SSM Parameter Store (WIZ Attack Chain Phase 3 - Credential Theft)</description>
+    <group>aws,credential_theft,attack_chain,pci_dss_8.2.1,</group>
+  </rule>
+
+  <!-- Phase 4: Overprivileged IAM - MongoDB role doing EC2 enumeration -->
+  <rule id="100006" level="12">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">DescribeInstances</field>
+    <regex>mongodb-role</regex>
+    <description>HIGH: EC2 Enumeration from MongoDB Instance Role (WIZ Attack Chain Phase 4 - Privilege Abuse)</description>
+    <group>aws,privilege_escalation,attack_chain,pci_dss_10.2.5,</group>
+  </rule>
+
+  <!-- Phase 4: IMDS Credential Theft - curl to metadata service -->
+  <rule id="100010" level="15">
+    <if_group>syslog</if_group>
+    <match>169.254.169.254</match>
+    <match>security-credentials</match>
+    <description>CRITICAL: IMDS Credential Theft Attempt Detected (WIZ Attack Chain Phase 4 - Privilege Escalation)</description>
+    <group>imds,credential_theft,attack_chain,pci_dss_8.2.1,</group>
+  </rule>
+
+  <!-- Phase 3: SSH Lateral Movement - Accepted SSH to MongoDB -->
+  <rule id="100011" level="10">
+    <if_sid>5715</if_sid>
+    <match>mongodb</match>
+    <description>HIGH: SSH Lateral Movement to MongoDB Instance (WIZ Attack Chain Phase 3)</description>
+    <group>ssh,lateral_movement,attack_chain,pci_dss_10.2.4,</group>
+  </rule>
+
+  <!-- Phase 3: SSH Lateral Movement - SSH from Red Team instance -->
+  <rule id="100012" level="10">
+    <if_sid>5715</if_sid>
+    <match>redteam</match>
+    <description>HIGH: SSH Connection from Red Team Instance (WIZ Attack Chain Phase 3)</description>
+    <group>ssh,lateral_movement,attack_chain,</group>
+  </rule>
+
+  <!-- Generic: Suspicious AWS API call patterns -->
+  <rule id="100020" level="8">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">GetSecretValue</field>
+    <description>MEDIUM: AWS Secrets Manager Access Detected</description>
+    <group>aws,credential_access,attack_chain,</group>
+  </rule>
+
+  <!-- Generic: AWS GuardDuty findings (if integrated) -->
+  <rule id="100021" level="12">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventSource">guardduty.amazonaws.com</field>
+    <description>HIGH: AWS GuardDuty Finding Detected</description>
+    <group>aws,guardduty,attack_chain,</group>
+  </rule>
+
+</group>
+ATTACKRULES
+
+# Inject custom rules into Wazuh Manager
+echo "Injecting custom attack chain rules into Wazuh Manager..."
+
+docker cp /tmp/attack-chain-rules.xml $MANAGER_CONTAINER:/tmp/attack-chain-rules.xml 2>/dev/null || echo "Could not copy rules to container"
+
+# Create or update local_rules.xml with our custom rules
+docker exec $MANAGER_CONTAINER bash -c '
+  LOCAL_RULES="/var/ossec/etc/rules/local_rules.xml"
+  
+  # Check if local_rules.xml exists and has our rules
+  if [ -f "$LOCAL_RULES" ] && grep -q "attack_chain" "$LOCAL_RULES"; then
+    echo "Attack chain rules already present in local_rules.xml"
+  else
+    # Backup existing local_rules.xml if it exists
+    [ -f "$LOCAL_RULES" ] && cp "$LOCAL_RULES" "${LOCAL_RULES}.bak"
+    
+    # Create new local_rules.xml with our custom rules
+    echo "<!-- Wazuh custom rules -->" > "$LOCAL_RULES"
+    cat /tmp/attack-chain-rules.xml >> "$LOCAL_RULES"
+    
+    # Validate the rules
+    if /var/ossec/bin/wazuh-logtest -U 100001:100021 2>/dev/null; then
+      echo "Custom rules validated successfully"
+    else
+      echo "Note: Rule validation returned non-zero (rules might still work)"
+    fi
+    
+    echo "Custom attack chain rules injected into $LOCAL_RULES"
+  fi
+  rm -f /tmp/attack-chain-rules.xml
+' 2>/dev/null || echo "Custom rules injection skipped - container may need manual config"
+
+rm /tmp/attack-chain-rules.xml
+
+# Restart Wazuh Manager to load new rules
+echo "Restarting Wazuh Manager to load custom rules..."
+docker exec $MANAGER_CONTAINER /var/ossec/bin/wazuh-control restart 2>/dev/null || echo "Manager restart skipped - may need manual restart"
+
+echo "Custom attack chain detection rules configured at $(date)"

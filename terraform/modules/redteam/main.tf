@@ -140,6 +140,7 @@ resource "aws_instance" "redteam" {
     aws_region         = var.aws_region
     enable_wazuh_agent = var.enable_wazuh_agent
     wazuh_manager_ip   = var.wazuh_manager_ip
+    attack_chain_b64   = base64gzip(file("${path.module}/files/attack-chain.sh"))
   })
 
   tags = merge(var.tags, {

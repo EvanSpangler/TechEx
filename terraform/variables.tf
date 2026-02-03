@@ -84,7 +84,7 @@ variable "backup_encryption_key" {
 variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
-  default     = "1.29"
+  default     = "1.32"
 }
 
 variable "eks_node_instance_types" {
@@ -175,10 +175,10 @@ variable "wazuh_admin_password" {
 }
 
 variable "wazuh_api_password" {
-  description = "Wazuh API password"
+  description = "Wazuh API password (must meet Wazuh complexity requirements)"
   type        = string
   sensitive   = true
-  default     = "WazuhAPI123!"
+  default     = "MyS3cr37P450r.*-" # Wazuh default - meets complexity requirements
 }
 
 # ==========================================
