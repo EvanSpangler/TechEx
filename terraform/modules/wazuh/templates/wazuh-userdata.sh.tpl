@@ -72,26 +72,39 @@ chmod 600 /opt/wazuh/.api_pass
 
 # Update Dashboard's API configuration with the correct password
 # The Dashboard stores API connection settings in wazuh.yml
+# Note: sed -i fails inside Docker volume mounts ("Device or resource busy"),
+# and the Dashboard may regenerate wazuh.yml after initial startup.
+# We must wait for the Dashboard to fully initialize, then write the complete
+# file using cp (not sed -i) and restart.
 echo "=== Updating Dashboard API configuration ==="
 DASHBOARD_CONTAINER="single-node-wazuh.dashboard-1"
 WAZUH_YML_PATH="/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml"
 
-# Wait for the dashboard config file to exist
-for i in {1..30}; do
-  if docker exec $DASHBOARD_CONTAINER test -f $WAZUH_YML_PATH 2>/dev/null; then
-    echo "Dashboard config file found"
+# Wait for the dashboard to be fully ready (health check on port 5601)
+echo "Waiting for Dashboard to fully initialize..."
+for i in {1..60}; do
+  if docker exec $DASHBOARD_CONTAINER curl -sk -o /dev/null -w '%%{http_code}' https://localhost:5601/api/status 2>/dev/null | grep -q "200\|401"; then
+    echo "Dashboard is ready"
     break
   fi
-  echo "Waiting for dashboard config file... ($i/30)"
-  sleep 5
+  echo "Waiting for Dashboard health... ($i/60)"
+  sleep 10
 done
 
-# Update the API password in wazuh.yml
-# Escape special characters for sed replacement
-ESCAPED_API_PASS_FOR_YML=$(printf '%s\n' "${wazuh_api_pass}" | sed 's/[&/\]/\\&/g')
-docker exec $DASHBOARD_CONTAINER bash -c "sed -i 's/password: .*/password: \"$ESCAPED_API_PASS_FOR_YML\"/g' $WAZUH_YML_PATH" 2>/dev/null && \
-  echo "Dashboard API password updated" || \
-  echo "Warning: Could not update dashboard API password"
+# Write the complete wazuh.yml with correct credentials
+# Using cp instead of sed -i to avoid "Device or resource busy" on Docker volumes
+docker exec -u root $DASHBOARD_CONTAINER bash -c "cat > /tmp/wazuh.yml << 'WAZUHCFG'
+hosts:
+  - default:
+      url: \"https://wazuh.manager\"
+      port: 55000
+      username: wazuh-wui
+      password: \"${wazuh_api_pass}\"
+      run_as: false
+WAZUHCFG
+cp /tmp/wazuh.yml $WAZUH_YML_PATH && rm /tmp/wazuh.yml" 2>/dev/null && \
+  echo "Dashboard API configuration written" || \
+  echo "Warning: Could not write dashboard API configuration"
 
 # Verify the change
 echo "=== Dashboard API configuration ==="

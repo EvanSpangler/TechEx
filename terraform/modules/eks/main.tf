@@ -49,9 +49,20 @@ resource "aws_security_group" "eks_cluster" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
+  }
+
   tags = merge(var.tags, {
     Name = "${local.cluster_name}-cluster-sg"
   })
+}
+
+data "aws_vpc" "selected" {
+  id = var.vpc_id
 }
 
 # EKS Cluster
