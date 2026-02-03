@@ -232,7 +232,7 @@ resource "aws_instance" "wazuh" {
     delete_on_termination = true
   }
 
-  user_data = templatefile("${path.module}/templates/wazuh-userdata.sh.tpl", {
+  user_data_base64 = base64gzip(templatefile("${path.module}/templates/wazuh-userdata.sh.tpl", {
     environment         = var.environment
     wazuh_admin_pass    = var.wazuh_admin_password
     wazuh_api_user      = var.wazuh_api_user
@@ -242,7 +242,7 @@ resource "aws_instance" "wazuh" {
     vpc_flow_logs_group = local.vpc_flow_logs_group
     eks_log_group       = local.eks_log_group
     aws_region          = var.aws_region
-  })
+  }))
 
   tags = merge(var.tags, {
     Name = "${var.environment}-wazuh-manager"

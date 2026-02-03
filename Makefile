@@ -102,6 +102,7 @@ build: ## Deploy via GitHub Actions
 	@sleep 5
 	@$(MAKE) watch
 	@$(MAKE) ssh-keys
+	@$(MAKE) build-app
 
 build-app: ## Build and Deploy Application via GitHub Actions
 	@printf "$(GREEN)Triggering Application Build & Deploy...$(NC)\n"

@@ -10,6 +10,10 @@ on:
     paths:
       - 'app/**'
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy Infrastructure"]
+    types:
+      - completed
 
 env:
   AWS_REGION: 'us-east-1'

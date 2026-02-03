@@ -201,3 +201,9 @@ variable "redteam_allowed_cidrs" {
   description = "CIDRs allowed to SSH to Red Team instance"
   type        = list(string)
 }
+
+variable "clear_logs_on_deploy" {
+  description = "Clear CloudTrail and Config S3 buckets on every deployment (for clean demo state)"
+  type        = bool
+  default     = true
+}

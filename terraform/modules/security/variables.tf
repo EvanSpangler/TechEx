@@ -4,19 +4,24 @@ variable "environment" {
 }
 
 variable "tags" {
-  description = "Tags to apply to resources"
+  description = "Common tags"
   type        = map(string)
-  default     = {}
 }
 
 variable "enable_guardduty" {
-  description = "Enable GuardDuty (set to false if already enabled in account)"
+  description = "Enable GuardDuty"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "enable_config" {
-  description = "Enable AWS Config (set to false if already enabled in account)"
+  description = "Enable AWS Config"
+  type        = bool
+  default     = true
+}
+
+variable "clear_logs_on_deploy" {
+  description = "Clear CloudTrail and Config S3 buckets on every deployment"
   type        = bool
   default     = false
 }

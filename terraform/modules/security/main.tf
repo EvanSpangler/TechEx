@@ -333,3 +333,31 @@ resource "aws_config_config_rule" "iam_root_access_key_check" {
 
   depends_on = [aws_config_configuration_recorder.main]
 }
+
+# ==========================================
+# Log Cleanup Trigger
+# ==========================================
+
+resource "null_resource" "cleanup_logs" {
+  count = var.clear_logs_on_deploy ? 1 : 0
+
+  triggers = {
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = <<EOT
+      echo "Cleaning up log buckets..."
+      aws s3 rm s3://${aws_s3_bucket.cloudtrail.id} --recursive
+      %{ if var.enable_config }
+      aws s3 rm s3://${aws_s3_bucket.config[0].id} --recursive
+      %{ endif }
+      echo "Log buckets cleared."
+    EOT
+  }
+
+  depends_on = [
+    aws_s3_bucket.cloudtrail,
+    aws_s3_bucket.config
+  ]
+}

@@ -1,0 +1,108 @@
+<!-- Wazuh custom rules -->
+<!-- WIZ Exercise - Attack Chain Detection Rules -->
+<!-- Custom rules for detecting demo attack patterns with HIGH/CRITICAL severity -->
+
+<group name="attack_chain,">
+
+  <!-- Phase 1: SSM Parameter Enumeration (Recon) -->
+  <rule id="100001" level="10">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">DescribeParameters</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>HIGH: AWS SSM Parameter Enumeration Detected (WIZ Attack Chain Phase 1 - Recon)</description>
+    <group>aws,recon,attack_chain,pci_dss_10.6.1,</group>
+  </rule>
+
+  <!-- Phase 1: EC2 Instance Enumeration (Recon) -->
+  <rule id="100002" level="8">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">DescribeInstances</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>MEDIUM: AWS EC2 Instance Enumeration (WIZ Attack Chain Phase 1 - Recon)</description>
+    <group>aws,recon,attack_chain,</group>
+  </rule>
+
+  <!-- Phase 2: Unauthenticated S3 Bucket Listing -->
+  <rule id="100003" level="12">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">ListBucket</field>
+    <field name="aws.userIdentity.type">AWSAccount</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>HIGH: Unauthenticated S3 Bucket Listing (WIZ Attack Chain Phase 2 - Exfil)</description>
+    <group>aws,exfiltration,attack_chain,pci_dss_10.6.1,</group>
+  </rule>
+
+  <!-- Phase 2: Unauthenticated S3 Object Download -->
+  <rule id="100004" level="14">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">GetObject</field>
+    <field name="aws.userIdentity.type">AWSAccount</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>CRITICAL: Unauthenticated S3 Object Download (WIZ Attack Chain Phase 2 - Data Exfiltration)</description>
+    <group>aws,exfiltration,attack_chain,pci_dss_10.6.1,gdpr_IV_35.7.d,</group>
+  </rule>
+
+  <!-- Phase 3: SSH Private Key Retrieval from SSM -->
+  <rule id="100005" level="15">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">GetParameter</field>
+    <regex>ssh-private-key</regex>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>CRITICAL: SSH Private Key Retrieved from SSM Parameter Store (WIZ Attack Chain Phase 3 - Credential Theft)</description>
+    <group>aws,credential_theft,attack_chain,pci_dss_8.2.1,</group>
+  </rule>
+
+  <!-- Phase 4: Overprivileged IAM - MongoDB role doing EC2 enumeration -->
+  <rule id="100006" level="12">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">DescribeInstances</field>
+    <regex>mongodb-role</regex>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>HIGH: EC2 Enumeration from MongoDB Instance Role (WIZ Attack Chain Phase 4 - Privilege Abuse)</description>
+    <group>aws,privilege_escalation,attack_chain,pci_dss_10.2.5,</group>
+  </rule>
+
+  <!-- Phase 4: IMDS Credential Theft - curl to metadata service -->
+  <rule id="100010" level="15">
+    <if_group>syslog</if_group>
+    <match>169.254.169.254</match>
+    <match>security-credentials</match>
+    <description>CRITICAL: IMDS Credential Theft Attempt Detected (WIZ Attack Chain Phase 4 - Privilege Escalation)</description>
+    <group>imds,credential_theft,attack_chain,pci_dss_8.2.1,</group>
+  </rule>
+
+  <!-- Phase 3: SSH Lateral Movement - Accepted SSH to MongoDB -->
+  <rule id="100011" level="10">
+    <if_sid>5715</if_sid>
+    <match>mongodb</match>
+    <description>HIGH: SSH Lateral Movement to MongoDB Instance (WIZ Attack Chain Phase 3)</description>
+    <group>ssh,lateral_movement,attack_chain,pci_dss_10.2.4,</group>
+  </rule>
+
+  <!-- Phase 3: SSH Lateral Movement - SSH from Red Team instance -->
+  <rule id="100012" level="10">
+    <if_sid>5715</if_sid>
+    <match>redteam</match>
+    <description>HIGH: SSH Connection from Red Team Instance (WIZ Attack Chain Phase 3)</description>
+    <group>ssh,lateral_movement,attack_chain,</group>
+  </rule>
+
+  <!-- Generic: Suspicious AWS API call patterns -->
+  <rule id="100020" level="8">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventName">GetSecretValue</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>MEDIUM: AWS Secrets Manager Access Detected</description>
+    <group>aws,credential_access,attack_chain,</group>
+  </rule>
+
+  <!-- Generic: AWS GuardDuty findings (if integrated) -->
+  <rule id="100021" level="12">
+    <if_sid>80200</if_sid>
+    <field name="aws.eventSource">guardduty.amazonaws.com</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
+    <description>HIGH: AWS GuardDuty Finding Detected</description>
+    <group>aws,guardduty,attack_chain,</group>
+  </rule>
+
+</group>

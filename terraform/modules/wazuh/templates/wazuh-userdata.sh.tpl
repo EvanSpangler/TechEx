@@ -289,6 +289,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
   <rule id="100001" level="10">
     <if_sid>80200</if_sid>
     <field name="aws.eventName">DescribeParameters</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>HIGH: AWS SSM Parameter Enumeration Detected (WIZ Attack Chain Phase 1 - Recon)</description>
     <group>aws,recon,attack_chain,pci_dss_10.6.1,</group>
   </rule>
@@ -297,6 +298,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
   <rule id="100002" level="8">
     <if_sid>80200</if_sid>
     <field name="aws.eventName">DescribeInstances</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>MEDIUM: AWS EC2 Instance Enumeration (WIZ Attack Chain Phase 1 - Recon)</description>
     <group>aws,recon,attack_chain,</group>
   </rule>
@@ -306,6 +308,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
     <if_sid>80200</if_sid>
     <field name="aws.eventName">ListBucket</field>
     <field name="aws.userIdentity.type">AWSAccount</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>HIGH: Unauthenticated S3 Bucket Listing (WIZ Attack Chain Phase 2 - Exfil)</description>
     <group>aws,exfiltration,attack_chain,pci_dss_10.6.1,</group>
   </rule>
@@ -315,6 +318,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
     <if_sid>80200</if_sid>
     <field name="aws.eventName">GetObject</field>
     <field name="aws.userIdentity.type">AWSAccount</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>CRITICAL: Unauthenticated S3 Object Download (WIZ Attack Chain Phase 2 - Data Exfiltration)</description>
     <group>aws,exfiltration,attack_chain,pci_dss_10.6.1,gdpr_IV_35.7.d,</group>
   </rule>
@@ -324,6 +328,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
     <if_sid>80200</if_sid>
     <field name="aws.eventName">GetParameter</field>
     <regex>ssh-private-key</regex>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>CRITICAL: SSH Private Key Retrieved from SSM Parameter Store (WIZ Attack Chain Phase 3 - Credential Theft)</description>
     <group>aws,credential_theft,attack_chain,pci_dss_8.2.1,</group>
   </rule>
@@ -333,6 +338,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
     <if_sid>80200</if_sid>
     <field name="aws.eventName">DescribeInstances</field>
     <regex>mongodb-role</regex>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>HIGH: EC2 Enumeration from MongoDB Instance Role (WIZ Attack Chain Phase 4 - Privilege Abuse)</description>
     <group>aws,privilege_escalation,attack_chain,pci_dss_10.2.5,</group>
   </rule>
@@ -366,6 +372,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
   <rule id="100020" level="8">
     <if_sid>80200</if_sid>
     <field name="aws.eventName">GetSecretValue</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>MEDIUM: AWS Secrets Manager Access Detected</description>
     <group>aws,credential_access,attack_chain,</group>
   </rule>
@@ -374,6 +381,7 @@ cat > /tmp/attack-chain-rules.xml << 'ATTACKRULES'
   <rule id="100021" level="12">
     <if_sid>80200</if_sid>
     <field name="aws.eventSource">guardduty.amazonaws.com</field>
+    <field name="aws.sourceIPAddress" negate="yes">204.111.196.200</field>
     <description>HIGH: AWS GuardDuty Finding Detected</description>
     <group>aws,guardduty,attack_chain,</group>
   </rule>
@@ -395,7 +403,7 @@ docker exec $MANAGER_CONTAINER bash -c '
     echo "Attack chain rules already present in local_rules.xml"
   else
     # Backup existing local_rules.xml if it exists
-    [ -f "$LOCAL_RULES" ] && cp "$LOCAL_RULES" "${LOCAL_RULES}.bak"
+    [ -f "$LOCAL_RULES" ] && cp "$LOCAL_RULES" "$${LOCAL_RULES}.bak"
     
     # Create new local_rules.xml with our custom rules
     echo "<!-- Wazuh custom rules -->" > "$LOCAL_RULES"

@@ -1,6 +1,7 @@
 output "vpc_id" {
   description = "VPC ID"
   value       = aws_vpc.main.id
+  depends_on  = [aws_internet_gateway.main]
 }
 
 output "vpc_cidr" {
@@ -11,6 +12,7 @@ output "vpc_cidr" {
 output "public_subnet_ids" {
   description = "Public subnet IDs"
   value       = aws_subnet.public[*].id
+  depends_on  = [aws_internet_gateway.main]
 }
 
 output "private_subnet_ids" {
