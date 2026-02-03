@@ -2,11 +2,11 @@ name: Build and Deploy Application
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
       - 'app/**'
   pull_request:
-    branches: [main]
+    branches: [main, master]
     paths:
       - 'app/**'
   workflow_dispatch:
