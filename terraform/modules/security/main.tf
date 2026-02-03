@@ -349,9 +349,9 @@ resource "null_resource" "cleanup_logs" {
     command = <<EOT
       echo "Cleaning up log buckets..."
       aws s3 rm s3://${aws_s3_bucket.cloudtrail.id} --recursive
-      %{ if var.enable_config }
+      %{if var.enable_config}
       aws s3 rm s3://${aws_s3_bucket.config[0].id} --recursive
-      %{ endif }
+      %{endif}
       echo "Log buckets cleared."
     EOT
   }
