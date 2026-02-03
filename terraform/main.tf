@@ -158,9 +158,9 @@ module "k8s_app" {
 module "security" {
   source = "./modules/security"
 
-  environment = var.environment
+  environment          = var.environment
   clear_logs_on_deploy = var.clear_logs_on_deploy
-  tags        = local.tags
+  tags                 = local.tags
 }
 
 # ==========================================

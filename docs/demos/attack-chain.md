@@ -1,6 +1,6 @@
 # Full Attack Chain Demo (Manual Deep-Dive)
 
-> **Note:** For the **automated demo script** (`./attack-chain.sh`), see the condensed [Demo Guide](../../DEMO.md). This page documents the manual steps and underlying vulnerabilities in detail.
+> **Note:** For the **automated demo script** (`./attack-chain.sh`), see the condensed [Demo Guide](../demo-guide.md). This page documents the manual steps and underlying vulnerabilities in detail.
 
 This demo walks through a complete attack chain, exploiting multiple vulnerabilities to achieve full infrastructure compromise.
 
