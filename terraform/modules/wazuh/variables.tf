@@ -34,7 +34,6 @@ variable "wazuh_admin_password" {
   description = "Wazuh admin password"
   type        = string
   sensitive   = true
-  default     = "WazuhAdmin123!"
 }
 
 variable "wazuh_api_user" {
@@ -47,7 +46,6 @@ variable "wazuh_api_password" {
   description = "Wazuh API password"
   type        = string
   sensitive   = true
-  default     = "WazuhAPI123!"
 }
 
 variable "tags" {

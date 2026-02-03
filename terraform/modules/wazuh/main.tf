@@ -250,3 +250,12 @@ resource "aws_ssm_parameter" "wazuh_admin_password" {
 
   tags = var.tags
 }
+
+resource "aws_ssm_parameter" "wazuh_api_password" {
+  name        = "/${var.environment}/wazuh/api-password"
+  description = "Wazuh API password for wazuh-wui user"
+  type        = "SecureString"
+  value       = var.wazuh_api_password
+
+  tags = var.tags
+}

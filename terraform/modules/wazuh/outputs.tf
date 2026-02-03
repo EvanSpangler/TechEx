@@ -32,3 +32,8 @@ output "ssh_private_key_ssm_parameter" {
   description = "SSM parameter name for SSH private key"
   value       = aws_ssm_parameter.wazuh_private_key.name
 }
+
+output "api_password_ssm_parameter" {
+  description = "SSM parameter name for API password"
+  value       = aws_ssm_parameter.wazuh_api_password.name
+}

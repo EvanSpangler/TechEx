@@ -171,14 +171,22 @@ ssh-keys: ## Fetch and store SSH keys locally
 		chmod 600 keys/redteam.pem && \
 		printf "$(GREEN)[OK]$(NC) keys/redteam.pem\n" || \
 		(rm -f keys/redteam.pem && printf "$(YELLOW)[SKIP]$(NC) Red Team key not available\n")'
-	@# Wazuh admin password
+	@# Wazuh admin password (dashboard)
 	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
 		aws ssm get-parameter --name /wiz-exercise/wazuh/admin-password \
 		--with-decryption --query "Parameter.Value" --output text \
 		--region $(AWS_REGION) > keys/wazuh-password.txt 2>/dev/null && \
 		chmod 600 keys/wazuh-password.txt && \
-		printf "$(GREEN)[OK]$(NC) keys/wazuh-password.txt\n" || \
-		(rm -f keys/wazuh-password.txt && printf "$(YELLOW)[SKIP]$(NC) Wazuh password not available\n")'
+		printf "$(GREEN)[OK]$(NC) keys/wazuh-password.txt (dashboard)\n" || \
+		(rm -f keys/wazuh-password.txt && printf "$(YELLOW)[SKIP]$(NC) Wazuh dashboard password not available\n")'
+	@# Wazuh API password
+	@bash -c 'source $(ENV_FILE) 2>/dev/null; \
+		aws ssm get-parameter --name /wiz-exercise/wazuh/api-password \
+		--with-decryption --query "Parameter.Value" --output text \
+		--region $(AWS_REGION) > keys/wazuh-api-password.txt 2>/dev/null && \
+		chmod 600 keys/wazuh-api-password.txt && \
+		printf "$(GREEN)[OK]$(NC) keys/wazuh-api-password.txt (API)\n" || \
+		(rm -f keys/wazuh-api-password.txt && printf "$(YELLOW)[SKIP]$(NC) Wazuh API password not available\n")'
 	@printf "\n"
 	@$(MAKE) ssh-info
 
@@ -193,12 +201,15 @@ ssh-info: ## Show SSH connection commands
 	WAZUH_IP=$$(terraform output -raw wazuh_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	REDTEAM_IP=$$(terraform output -raw redteam_public_ip 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1) && \
 	WAZUH_PASS=$$(cat ../keys/wazuh-password.txt 2>/dev/null || echo "run 'make ssh-keys' to fetch") && \
+	WAZUH_API_PASS=$$(cat ../keys/wazuh-api-password.txt 2>/dev/null || echo "run 'make ssh-keys' to fetch") && \
 	if [ -n "$$MONGODB_IP" ]; then \
 		printf "$(GREEN)MongoDB:$(NC)    ssh -i keys/mongodb.pem ubuntu@$$MONGODB_IP\n"; \
 		printf "$(GREEN)Wazuh:$(NC)      ssh -i keys/wazuh.pem ubuntu@$$WAZUH_IP\n"; \
 		printf "$(GREEN)Dashboard:$(NC)  https://$$WAZUH_IP\n"; \
 		printf "$(GREEN)  User:$(NC)     admin\n"; \
 		printf "$(GREEN)  Password:$(NC) $$WAZUH_PASS\n"; \
+		printf "$(GREEN)API User:$(NC)   wazuh-wui\n"; \
+		printf "$(GREEN)API Pass:$(NC)   $$WAZUH_API_PASS\n"; \
 		printf "$(GREEN)Red Team:$(NC)   ssh -i keys/redteam.pem ubuntu@$$REDTEAM_IP\n"; \
 	else \
 		printf "$(YELLOW)No infrastructure deployed. Run 'make build' first.$(NC)\n"; \
