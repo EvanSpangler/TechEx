@@ -145,6 +145,7 @@ module "k8s_app" {
   namespace       = var.app_namespace
   app_name        = var.app_name
   container_image = var.container_image
+  container_port  = 8080
   replicas        = var.app_replicas
   mongodb_uri     = module.mongodb.mongodb_connection_string
   jwt_secret      = var.jwt_secret
